@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colegio Xochicalli - Control Escolar QR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; visibility: visible !important; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; z-index: 9999; background: white; }
+            .qr-grid { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 15px !important; padding: 10px; }
+            .master-list-table { width: 100% !important; border-collapse: collapse !important; margin-top: 15px; }
+            .master-list-table th, .master-list-table td { border: 1px solid #000 !important; padding: 6px 10px !important; text-align: left !important; font-size: 12px; }
+            .page-break { page-break-after: always; }
+            body { background: white !important; -webkit-print-color-adjust: exact; }
+        }
+        .print-only { display: none; }
+        .tab-active { border-bottom: 4px solid #2563eb; color: #2563eb; font-weight: bold; }
+        .subtab-active { background-color: #2563eb !important; color: white !important; }
+        .inner-tab-active { border-color: #2563eb; color: #2563eb; background-color: #eff6ff; }
+        #qr-reader video { border-radius: 12px; }
+        .qr-wrapper canvas, .qr-wrapper img { margin: 0 auto; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
+
+    <!-- MODAL DE MENSAJES Y CONFIRMACIÓN -->
+    <div id="custom-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4 border-t-4 border-blue-600">
+            <h3 id="modal-msg-title" class="text-lg font-bold text-blue-900 uppercase">Aviso</h3>
+            <p id="modal-msg-body" class="text-sm text-slate-600 font-medium"></p>
+            <div id="modal-msg-footer" class="flex gap-2 pt-2">
+                <button id="btn-modal-cancel" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg font-bold text-xs uppercase">Cancelar</button>
+                <button id="btn-modal-confirm" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold text-xs uppercase">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN DE LOGIN -->
+    <section id="section-login" class="fixed inset-0 bg-blue-900 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full space-y-6 text-center border-t-8 border-blue-600">
+            <img src="Logo Xochicalli PNG (1).png" alt="Logo" class="h-20 mx-auto" onerror="this.style.display='none'">
+            <h1 class="text-2xl font-bold text-blue-900 uppercase leading-tight">Colegio Xochicalli</h1>
+            <div id="login-container" class="space-y-4">
+                <p class="text-sm text-slate-500 uppercase font-bold tracking-tighter">Identificación de Personal</p>
+                <input id="input-login-id" type="text" placeholder="ID PERSONAL" class="w-full px-4 py-3 border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 text-center text-lg font-bold uppercase transition-all">
+                <button id="btn-login" onclick="attemptLogin()" disabled class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all uppercase tracking-widest disabled:bg-slate-400">
+                    <span id="login-btn-text">Conectando...</span>
+                </button>
+                <div id="login-error" class="text-xs font-bold text-red-500 hidden uppercase italic">ID NO RECONOCIDO</div>
+                <div id="admin-hint" class="text-[10px] text-slate-400 font-bold uppercase hidden text-center mt-4 bg-slate-50 p-2 rounded">Sistema nuevo: Use el ID 'ADMIN' para configurar</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- HEADER -->
+    <header id="main-header" class="bg-white shadow-sm no-print hidden">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <i class="fas fa-school text-blue-600 text-2xl"></i>
+                <div class="flex flex-col">
+                    <h1 class="text-xl font-bold uppercase text-blue-900 leading-none">Colegio Xochicalli</h1>
+                    <span id="user-display-name" class="text-[10px] text-slate-400 font-bold tracking-widest uppercase italic tracking-tighter">Usuario</span>
+                </div>
+            </div>
+            <nav class="flex gap-1 bg-slate-100 p-1 rounded-lg items-center">
+                <button onclick="switchTab('scanner')" id="tab-scanner" class="px-4 py-2 rounded-md transition-all text-xs font-bold uppercase">
+                    <i class="fas fa-camera mr-1"></i>Pasar Lista
+                </button>
+                <button onclick="switchTab('admin')" id="tab-admin" class="px-4 py-2 rounded-md transition-all text-xs font-bold uppercase hidden">
+                    <i class="fas fa-users-cog mr-1"></i>Control Escolar
+                </button>
+                <div class="h-6 w-px bg-slate-300 mx-2"></div>
+                <button onclick="logout()" class="p-2 text-red-500 hover:text-red-700 transition-colors">
+                    <i class="fas fa-power-off"></i>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main id="main-content" class="max-w-6xl mx-auto p-4 md:p-6 no-print hidden">
+        <!-- PASE DE LISTA -->
+        <section id="section-scanner" class="space-y-6">
+            <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
+                <div class="bg-blue-600 p-4 text-white text-center">
+                    <h2 class="text-lg font-semibold uppercase tracking-wide">Pase de Lista QR</h2>
+                    <p id="current-materia-label" class="text-xs opacity-80 uppercase font-bold">MATERIA...</p>
+                </div>
+                <div class="p-4 space-y-4">
+                    <div id="qr-reader-container" class="relative">
+                        <div id="qr-reader" class="rounded-lg overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 min-h-[250px]"></div>
+                        <div id="camera-off-overlay" class="hidden absolute inset-0 bg-slate-800/90 flex flex-col items-center justify-center text-white rounded-lg">
+                            <i class="fas fa-video-slash text-4xl mb-2"></i>
+                            <p class="text-sm font-medium uppercase">Cámara Apagada</p>
+                        </div>
+                    </div>
+                    <button id="btn-toggle-camera" onclick="toggleCamera()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 uppercase text-sm">
+                        <i class="fas fa-power-off"></i> <span id="btn-camera-text">Apagar Cámara</span>
+                    </button>
+                    <div id="scan-status" class="p-4 rounded-lg text-center font-bold hidden uppercase text-xs"></div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden max-w-2xl mx-auto shadow-lg">
+                <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <h3 class="font-bold text-sm uppercase text-slate-500 tracking-tight">Escaneos Recientes</h3>
+                    <span id="scan-count" class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full text-center uppercase">0 HOY</span>
+                </div>
+                <ul id="recent-logs" class="divide-y divide-slate-100 max-h-60 overflow-y-auto">
+                    <li class="p-4 text-center text-slate-400 italic text-sm uppercase font-bold">No hay registros hoy</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- CONTROL ESCOLAR -->
+        <section id="section-admin" class="hidden space-y-6">
+            <div class="flex flex-wrap gap-2 no-print border-b border-slate-200 pb-4">
+                <button onclick="switchSubTab('registro')" id="subtab-registro" class="px-4 py-2 rounded-lg bg-white border border-slate-200 text-xs font-bold shadow-sm transition-all hover:bg-slate-50 uppercase text-slate-600">Registro</button>
+                <button onclick="switchSubTab('asistencia')" id="subtab-asistencia" class="px-4 py-2 rounded-lg bg-white border border-slate-200 text-xs font-bold shadow-sm transition-all hover:bg-slate-50 uppercase text-slate-600">Asistencia</button>
+                <button onclick="switchSubTab('impresion')" id="subtab-impresion" class="px-4 py-2 rounded-lg bg-white border border-slate-200 text-xs font-bold shadow-sm transition-all hover:bg-slate-50 uppercase text-slate-600">Impresión</button>
+                <button onclick="switchSubTab('mantenimiento')" id="subtab-mantenimiento" class="px-4 py-2 rounded-lg bg-white border border-slate-200 text-xs font-bold shadow-sm transition-all hover:bg-slate-50 text-red-600 uppercase">Mantenimiento</button>
+            </div>
+
+            <div id="subcontent-registro" class="hidden space-y-6">
+                <div class="flex gap-4 border-b border-slate-100 pb-2">
+                    <button onclick="switchInnerTab('alumnos')" id="innertab-alumnos" class="inner-tab-btn pb-2 px-4 text-xs font-bold uppercase border-b-2 border-transparent text-slate-400">Alumnos</button>
+                    <button onclick="switchInnerTab('maestros')" id="innertab-maestros" class="inner-tab-btn pb-2 px-4 text-xs font-bold uppercase border-b-2 border-transparent text-slate-400">Maestros</button>
+                </div>
+                <!-- Alumnos Content -->
+                <div id="innercontent-alumnos" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                        <h3 class="font-bold text-blue-900 uppercase text-xs border-b pb-2 text-center">Captura de Alumno</h3>
+                        <div class="space-y-3">
+                            <input id="input-id" type="text" placeholder="ID ALUMNO (1P01)" class="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 uppercase text-sm">
+                            <input id="input-name" type="text" placeholder="NOMBRE COMPLETO" class="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 uppercase text-sm">
+                            <button onclick="addStudent()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-all uppercase text-sm shadow-sm">Guardar Alumno</button>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4 text-center">
+                        <h3 class="font-bold text-blue-900 uppercase text-xs border-b pb-2 text-center">Carga CSV</h3>
+                        <input type="file" id="csv-file" accept=".csv" class="hidden">
+                        <button onclick="document.getElementById('csv-file').click()" class="w-full bg-slate-50 hover:bg-slate-100 text-slate-600 py-3 rounded-lg border border-slate-200 font-bold uppercase text-xs shadow-sm">Seleccionar Archivo</button>
+                        <div id="csv-status" class="mt-2 text-xs font-bold text-blue-600 uppercase italic"></div>
+                    </div>
+                </div>
+                <!-- Maestros Content -->
+                <div id="innercontent-maestros" class="hidden">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-lg mx-auto space-y-4 shadow-lg">
+                        <h3 class="font-bold text-blue-900 uppercase text-xs border-b pb-2 text-center">Registro de Docentes</h3>
+                        <div class="space-y-3">
+                            <input id="input-maestro-id" type="text" placeholder="ID MAESTRO" class="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 uppercase text-sm font-bold">
+                            <input id="input-maestro-name" type="text" placeholder="NOMBRE COMPLETO" class="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 uppercase text-sm">
+                            <input id="input-maestro-materia" type="text" placeholder="MATERIA" class="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 uppercase text-sm">
+                            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded-lg cursor-pointer">
+                                <input type="checkbox" id="input-maestro-admin" class="w-4 h-4 text-blue-600">
+                                <span class="text-xs font-bold text-slate-600 uppercase">Es Administrador</span>
+                            </label>
+                            <button onclick="addTeacher()" class="w-full bg-blue-900 hover:bg-blue-950 text-white font-bold py-2 rounded-lg transition-all uppercase text-sm shadow-md">Guardar Maestro</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ASISTENCIA -->
+            <div id="subcontent-asistencia" class="hidden space-y-4">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end shadow-sm">
+                    <div class="flex-1 min-w-[140px]">
+                        <label class="text-[9px] font-bold uppercase text-slate-400 block mb-1">Desde</label>
+                        <input id="date-from" type="date" class="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-xs">
+                    </div>
+                    <div class="flex-1 min-w-[140px]">
+                        <label class="text-[9px] font-bold uppercase text-slate-400 block mb-1">Hasta</label>
+                        <input id="date-to" type="date" class="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-xs">
+                    </div>
+                    <div class="flex-1 min-w-[140px]">
+                        <label class="text-[9px] font-bold uppercase text-slate-400 block mb-1">Grupo</label>
+                        <select id="select-group" class="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold">
+                            <option value="all">GENERAL</option>
+                            <optgroup label="PRIMARIA"><option value="1p">1P</option><option value="2p">2P</option><option value="3p">3P</option><option value="4p">4P</option><option value="5p">5P</option><option value="6p">6P</option></optgroup>
+                            <optgroup label="SECUNDARIA"><option value="1s">1S</option><option value="2s">2S</option><option value="3s">3S</option></optgroup>
+                        </select>
+                    </div>
+                    <button onclick="generateAttendanceReport()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-lg transition-all text-xs uppercase shadow-sm">Consultar</button>
+                    <button onclick="exportToExcel()" class="bg-slate-700 hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-lg transition-all text-xs uppercase shadow-sm">Excel</button>
+                </div>
+            </div>
+
+            <!-- IMPRESIÓN -->
+            <div id="subcontent-impresion" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4 text-center shadow-sm">
+                    <h3 class="font-bold text-blue-900 uppercase text-xs border-b pb-2">Gafetes QR</h3>
+                    <button onclick="printAllQRs()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition-all uppercase text-xs shadow-md">Imprimir Todos los QR</button>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4 shadow-sm">
+                    <h3 class="font-bold text-blue-900 uppercase text-xs border-b pb-2">Lista Maestra</h3>
+                    <div class="flex flex-wrap gap-4 bg-slate-50 p-3 rounded-lg border border-slate-100 mb-2 text-center justify-center">
+                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="check-id" checked class="w-3 h-3"><span class="text-[10px] font-bold uppercase">ID</span></label>
+                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="check-nombre" checked class="w-3 h-3"><span class="text-[10px] font-bold uppercase">Nombre</span></label>
+                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="check-qr" class="w-3 h-3"><span class="text-[10px] font-bold uppercase">QR</span></label>
+                    </div>
+                    <button onclick="printMasterList()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-lg transition-all uppercase text-xs shadow-md text-center">Generar e Imprimir</button>
+                </div>
+            </div>
+
+            <!-- MANTENIMIENTO -->
+            <div id="subcontent-mantenimiento" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-red-50 space-y-4 shadow-sm">
+                    <h3 class="font-bold text-red-600 text-xs uppercase border-b pb-2">Historial</h3>
+                    <button onclick="confirmClearAttendance()" class="w-full bg-red-50 text-red-600 border border-red-200 font-bold py-2 rounded-lg hover:bg-red-100 transition-all text-[10px] uppercase">Borrar Periodo</button>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-red-50 space-y-4 text-center shadow-sm">
+                    <h3 class="font-bold text-red-600 text-xs uppercase border-b pb-2 tracking-widest uppercase">Base de Datos</h3>
+                    <button onclick="confirmResetSystem()" class="w-full bg-red-800 text-white font-bold py-2 rounded-lg shadow-lg hover:bg-red-900 transition-all text-[10px] uppercase">VACIAR TODO EL SISTEMA</button>
+                </div>
+            </div>
+
+            <!-- TABLA GENERAL -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden shadow-md">
+                <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <h3 id="table-title-text" class="font-bold text-slate-700 uppercase tracking-tighter text-xs">Datos</h3>
+                    <div id="report-stats" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full hidden"></div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead id="table-headers" class="bg-slate-50 text-slate-400 text-[9px] uppercase font-bold tracking-wider border-b"></thead>
+                        <tbody id="data-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- AREA DE IMPRESIÓN -->
+    <div id="print-area" class="print-only"><div id="print-content"></div></div>
+
+    <!-- MODAL QR -->
+    <div id="qr-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4 no-print">
+        <div class="bg-white p-8 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl">
+            <h3 id="modal-title" class="text-xl font-bold uppercase text-blue-900 leading-none"></h3>
+            <div id="modal-qr-container" class="flex justify-center p-4 bg-white border border-slate-100 rounded-xl mx-auto shadow-inner"></div>
+            <p id="modal-id" class="text-lg font-mono font-bold text-blue-600 bg-blue-50 py-1 rounded-lg uppercase tracking-widest"></p>
+            <div class="flex gap-2">
+                <button onclick="window.print()" class="flex-1 bg-slate-800 text-white py-2 rounded-lg font-bold text-sm uppercase shadow-sm">Imprimir</button>
+                <button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg font-bold text-sm uppercase shadow-sm">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, query, where, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCXkAb_YnMSOcww5D6RQPMd56BSdCwkiB8",
+            authDomain: "listadeasitencia.firebaseapp.com",
+            projectId: "listadeasitencia",
+            storageBucket: "listadeasitencia.firebasestorage.app",
+            messagingSenderId: "379159619523",
+            appId: "1:379159619523:web:7aeb44a8bdc6d24bdd3f76"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = 'listadeasitencia';
+
+        let currentUser = null;
+        let loggedTeacher = null;
+        let students = [];
+        let teachers = [];
+        let html5QrScanner = null;
+        let isScannerRunning = false;
+        let isScannerTransitioning = false;
+        let scannedTodayIds = new Set();
+        let audioCtx = null;
+        let currentInnerTab = 'alumnos';
+
+        // REGLA 1: RUTAS OBLIGATORIAS PARA PREVENTA PERMISION ERROR
+        const alumnosColl = collection(db, 'artifacts', appId, 'public', 'data', 'alumnos');
+        const maestrosColl = collection(db, 'artifacts', appId, 'public', 'data', 'maestros');
+        const asistenciasColl = collection(db, 'artifacts', appId, 'public', 'data', 'asistencias');
+
+        const initAudio = () => { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); };
+        const playSuccessSound = () => { initAudio(); const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.frequency.setValueAtTime(880, audioCtx.currentTime); gain.gain.setValueAtTime(0, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.05); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15); osc.start(); osc.stop(audioCtx.currentTime + 0.15); };
+        const playErrorSound = () => { initAudio(); const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'square'; osc.frequency.setValueAtTime(120, audioCtx.currentTime); gain.gain.setValueAtTime(0, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.1); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4); osc.start(); osc.stop(audioCtx.currentTime + 0.4); };
+
+        const getMexicoDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        const getMexicoTime = () => new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date());
+
+        const showModalMsg = (title, message, callback = null, isConfirm = false) => {
+            const modal = document.getElementById('custom-modal');
+            document.getElementById('modal-msg-title').innerText = title;
+            document.getElementById('modal-msg-body').innerText = message;
+            const btnCancel = document.getElementById('btn-modal-cancel');
+            const btnConfirm = document.getElementById('btn-modal-confirm');
+            btnCancel.classList.toggle('hidden', !isConfirm);
+            modal.classList.remove('hidden');
+            const cleanup = () => {
+                modal.classList.add('hidden');
+                btnConfirm.replaceWith(btnConfirm.cloneNode(true));
+                btnCancel.replaceWith(btnCancel.cloneNode(true));
+            };
+            document.getElementById('btn-modal-confirm').addEventListener('click', () => { cleanup(); if (callback) callback(); });
+            if(isConfirm) document.getElementById('btn-modal-cancel').addEventListener('click', cleanup);
+        };
+
+        async function init() {
+            try {
+                // Forzamos autenticación anónima inmediata
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Auth init error:", error);
+            }
+
+            onAuthStateChanged(auth, async (user) => {
+                currentUser = user;
+                if (user) {
+                    document.getElementById('btn-login').disabled = false;
+                    document.getElementById('login-btn-text').innerText = 'Entrar';
+                    try {
+                        const snap = await getDocs(maestrosColl);
+                        if (snap.empty) document.getElementById('admin-hint').classList.remove('hidden');
+                    } catch (e) {
+                        console.error("Firestore read error:", e);
+                        showModalMsg("Error de Acceso", "Su base de datos está devolviendo un error de permisos. Asegúrese de que las reglas de Firestore estén configuradas correctamente.");
+                    }
+                }
+            });
+        }
+
+        window.attemptLogin = async () => {
+            if (!currentUser) return;
+            const id = document.getElementById('input-login-id').value.trim().toUpperCase();
+            if (!id) return;
+            
+            try {
+                const snapMaestros = await getDocs(maestrosColl);
+                if (snapMaestros.empty && id === 'ADMIN') {
+                    loggedTeacher = { id: 'ADMIN', nombre: 'ADMIN INICIAL', materia: 'SISTEMA', esAdmin: true };
+                    enterApp(); return;
+                }
+                const teacherDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', id));
+                if (teacherDoc.exists()) {
+                    loggedTeacher = { id: teacherDoc.id, ...teacherDoc.data() };
+                    enterApp();
+                } else {
+                    document.getElementById('login-error').classList.remove('hidden');
+                    playErrorSound();
+                    setTimeout(() => document.getElementById('login-error').classList.add('hidden'), 3000);
+                }
+            } catch (e) {
+                console.error("Login fail:", e);
+                showModalMsg("Error", "Error al conectar con la base de datos.");
+            }
+        };
+
+        function enterApp() {
+            document.getElementById('section-login').classList.add('hidden');
+            document.getElementById('main-header').classList.remove('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+            document.getElementById('user-display-name').innerText = `PROFESOR: ${loggedTeacher.nombre}`;
+            document.getElementById('current-materia-label').innerText = `MATERIA: ${loggedTeacher.materia}`;
+            if (loggedTeacher.esAdmin) document.getElementById('tab-admin').classList.remove('hidden');
+            loadStudents(); loadTeachers(); listenToAttendanceToday(); switchTab('scanner');
+        }
+
+        window.logout = () => {
+            showModalMsg("Cerrar Sesión", "¿Desea salir del sistema?", () => {
+                stopScanner().then(() => {
+                    loggedTeacher = null;
+                    document.getElementById('input-login-id').value = '';
+                    document.getElementById('main-header').classList.add('hidden');
+                    document.getElementById('main-content').classList.add('hidden');
+                    document.getElementById('section-login').classList.remove('hidden');
+                });
+            }, true);
+        };
+
+        window.switchTab = async (tab) => {
+            document.getElementById('section-scanner').classList.toggle('hidden', tab !== 'scanner');
+            document.getElementById('section-admin').classList.toggle('hidden', tab !== 'admin');
+            document.getElementById('tab-scanner').className = tab === 'scanner' ? 'px-4 py-2 rounded-md tab-active text-xs font-bold uppercase' : 'px-4 py-2 rounded-md hover:bg-slate-200 text-xs font-bold uppercase';
+            document.getElementById('tab-admin').className = tab === 'admin' ? 'px-4 py-2 rounded-md tab-active text-xs font-bold uppercase' : 'px-4 py-2 rounded-md hover:bg-slate-200 text-xs font-bold uppercase';
+            if (tab === 'scanner') await initScanner(); else await stopScanner();
+        };
+
+        window.switchSubTab = (subtab) => {
+            ['registro', 'asistencia', 'impresion', 'mantenimiento'].forEach(s => {
+                const el = document.getElementById('subcontent-' + s);
+                const btn = document.getElementById('subtab-' + s);
+                if(el) el.classList.add('hidden');
+                if(btn) btn.classList.remove('subtab-active');
+                if(btn) btn.classList.add('text-slate-600');
+            });
+            const targetEl = document.getElementById('subcontent-' + subtab);
+            const targetBtn = document.getElementById('subtab-' + subtab);
+            if(targetEl) targetEl.classList.remove('hidden');
+            if(targetBtn) {
+                targetBtn.classList.add('subtab-active');
+                targetBtn.classList.remove('text-slate-600');
+            }
+            if (subtab === 'registro') switchInnerTab(currentInnerTab);
+            else if (subtab === 'asistencia') { 
+                const today = getMexicoDate();
+                document.getElementById('date-from').value = today;
+                document.getElementById('date-to').value = today;
+                document.getElementById('data-table-body').innerHTML = ''; 
+                document.getElementById('table-headers').innerHTML = ''; 
+                document.getElementById('report-stats').classList.add('hidden'); 
+            } else loadStudents();
+        };
+
+        window.switchInnerTab = (tab) => {
+            currentInnerTab = tab;
+            document.querySelectorAll('.inner-tab-btn').forEach(btn => {
+                btn.classList.remove('inner-tab-active', 'text-blue-600');
+                btn.classList.add('text-slate-400', 'border-transparent');
+            });
+            const activeBtn = document.getElementById('innertab-' + tab);
+            activeBtn.classList.add('inner-tab-active', 'text-blue-600');
+            document.getElementById('innercontent-alumnos').classList.add('hidden');
+            document.getElementById('innercontent-maestros').classList.add('hidden');
+            document.getElementById('innercontent-' + tab).classList.remove('hidden');
+            if (tab === 'alumnos') loadStudents(); else loadTeachers();
+        };
+
+        async function initScanner() {
+            if (isScannerRunning || isScannerTransitioning) return;
+            isScannerTransitioning = true;
+            if (!html5QrScanner) html5QrScanner = new Html5Qrcode("qr-reader");
+            try { await html5QrScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess); isScannerRunning = true; updateScannerUI(true); } catch (err) {} finally { isScannerTransitioning = false; }
+        }
+
+        async function stopScanner() {
+            if (!isScannerRunning || isScannerTransitioning) return;
+            isScannerTransitioning = true;
+            try { await html5QrScanner.stop(); isScannerRunning = false; updateScannerUI(false); } catch (err) {} finally { isScannerTransitioning = false; }
+        }
+
+        window.toggleCamera = async () => { initAudio(); if (isScannerRunning) await stopScanner(); else await initScanner(); };
+
+        function updateScannerUI(isRunning) {
+            const btnText = document.getElementById('btn-camera-text');
+            const overlay = document.getElementById('camera-off-overlay');
+            if (isRunning) { if(btnText) btnText.innerText = "Apagar Cámara"; if(overlay) overlay.classList.add('hidden'); }
+            else { if(btnText) btnText.innerText = "Encender Cámara"; if(overlay) overlay.classList.remove('hidden'); }
+        }
+
+        async function onScanSuccess(decodedText) {
+            if (!currentUser || !loggedTeacher) return;
+            try { await html5QrScanner.pause(); } catch(e) {}
+            if (scannedTodayIds.has(decodedText)) {
+                playErrorSound(); showStatus(`YA REGISTRADO HOY: ${decodedText}`, "warning");
+            } else {
+                try {
+                    const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', decodedText));
+                    if (snap.exists()) {
+                        await addDoc(asistenciasColl, { 
+                            alumnoId: decodedText, 
+                            nombre: snap.data().nombre, 
+                            profesorId: loggedTeacher.id, 
+                            profesorNombre: loggedTeacher.nombre, 
+                            fecha: getMexicoDate(), 
+                            hora: getMexicoTime(), 
+                            timestamp: serverTimestamp() 
+                        });
+                        playSuccessSound(); showStatus(`REGISTRADO: ${snap.data().nombre}`, "success");
+                    } else { playErrorSound(); showStatus("NO REGISTRADO", "error"); }
+                } catch (e) { console.error(e); }
+            }
+            setTimeout(async () => { if (isScannerRunning && !isScannerTransitioning) try { await html5QrScanner.resume(); } catch(e) {} const st = document.getElementById('scan-status'); if(st) st.classList.add('hidden'); }, 2000);
+        }
+
+        function showStatus(msg, type) {
+            const el = document.getElementById('scan-status');
+            if(!el) return;
+            el.innerText = msg;
+            let cls = type === 'success' ? "bg-green-100 text-green-700" : (type === 'warning' ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700");
+            el.className = `p-4 rounded-lg text-center font-bold block ${cls}`; el.classList.remove('hidden');
+        }
+
+        function listenToAttendanceToday() {
+            if (!currentUser) return;
+            onSnapshot(asistenciasColl, (snap) => {
+                const logsList = document.getElementById('recent-logs');
+                const countBadge = document.getElementById('scan-count');
+                const todayStr = getMexicoDate();
+                scannedTodayIds.clear();
+                const logs = snap.docs.map(d => d.data()).filter(d => d.fecha === todayStr).sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                logs.forEach(l => scannedTodayIds.add(l.alumnoId));
+                countBadge.innerText = `${logs.length} HOY`;
+                if (logs.length === 0) { logsList.innerHTML = `<li class="p-4 text-center text-slate-400 italic text-sm font-bold uppercase">Sin registros hoy</li>`; return; }
+                logsList.innerHTML = logs.slice(0, 10).map(l => `<li class="p-4 flex justify-between items-center bg-white shadow-sm rounded-lg mb-1 px-4"><div><p class="font-bold uppercase text-slate-700 text-xs">${l.nombre}</p><p class="text-[9px] text-slate-400 font-bold">PROF: ${l.profesorNombre || 'N/A'}</p></div><span class="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500 font-mono font-bold">${l.hora || '--:--'}</span></li>`).join('');
+            });
+        }
+
+        window.loadStudents = async () => { if (!currentUser) return; try { const snap = await getDocs(alumnosColl); students = snap.docs.map(d => ({ id: d.id, ...d.data() })); if (currentInnerTab === 'alumnos') renderTable("catalog"); } catch(e) { console.error(e); } };
+        window.loadTeachers = async () => { if (!currentUser) return; try { const snap = await getDocs(maestrosColl); teachers = snap.docs.map(d => ({ id: d.id, ...d.data() })); if (currentInnerTab === 'maestros') renderTable("teachers"); } catch(e) { console.error(e); } };
+
+        window.addStudent = async () => { 
+            const id = document.getElementById('input-id').value.trim().toUpperCase(); 
+            const nombre = document.getElementById('input-name').value.trim().toUpperCase(); 
+            if (!id || !nombre) return showModalMsg("Aviso", "Complete los campos."); 
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', id), { nombre, createdAt: serverTimestamp() }); 
+                document.getElementById('input-id').value = ''; document.getElementById('input-name').value = ''; 
+                loadStudents(); showModalMsg("Guardado", "Alumno registrado exitosamente.");
+            } catch(e) { showModalMsg("Error", "No se pudo guardar: " + e.message); }
+        };
+
+        window.addTeacher = async () => { 
+            const id = document.getElementById('input-maestro-id').value.trim().toUpperCase(); 
+            const nombre = document.getElementById('input-maestro-name').value.trim().toUpperCase(); 
+            const materia = document.getElementById('input-maestro-materia').value.trim().toUpperCase(); 
+            const esAdmin = document.getElementById('input-maestro-admin').checked; 
+            if (!id || !nombre || !materia) return showModalMsg("Aviso", "Faltan datos del docente."); 
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', id), { nombre, materia, esAdmin, createdAt: serverTimestamp() }); 
+                document.getElementById('input-maestro-id').value = ''; document.getElementById('input-maestro-name').value = ''; document.getElementById('input-maestro-materia').value = ''; document.getElementById('input-maestro-admin').checked = false; 
+                loadTeachers(); showModalMsg("Guardado", "Maestro registrado exitosamente.");
+            } catch(e) { showModalMsg("Error", "No se pudo guardar: " + e.message); }
+        };
+
+        document.getElementById('csv-file').addEventListener('change', (e) => { 
+            const file = e.target.files[0]; if (!file) return; 
+            Papa.parse(file, { complete: async (r) => { 
+                const rows = r.data.slice(1); 
+                for (const row of rows) { if (row[0] && row[1]) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', String(row[0]).trim().toUpperCase()), { nombre: String(row[1]).trim().toUpperCase() }); } 
+                loadStudents(); showModalMsg("Carga Completa", "CSV procesado correctamente.");
+            }}); 
+        });
+
+        function renderTable(mode, data = []) {
+            const body = document.getElementById('data-table-body');
+            const head = document.getElementById('table-headers');
+            const titleText = document.getElementById('table-title-text');
+            if(!body || !head) return;
+            if (mode === "catalog") {
+                head.innerHTML = `<tr><th class="px-6 py-3 border-b uppercase">ID</th><th class="px-6 py-3 border-b uppercase">Nombre</th><th class="px-6 py-3 border-b text-center uppercase">QR</th><th class="px-6 py-3 border-b text-center uppercase">X</th></tr>`;
+                body.innerHTML = students.map(s => `<tr><td class="px-6 py-4 font-mono font-bold text-blue-600">${s.id}</td><td class="px-6 py-4 uppercase text-xs font-semibold">${s.nombre}</td><td class="px-6 py-4 text-center"><button onclick="showQR('${s.id}', '${s.nombre}')" class="text-blue-500"><i class="fas fa-qrcode"></i></button></td><td class="px-6 py-4 text-center"><button onclick="confirmDeleteStudent('${s.id}')" class="text-red-400"><i class="fas fa-trash-alt"></i></button></td></tr>`).join('');
+                titleText.innerText = "Lista de Alumnos";
+            } else if (mode === "teachers") {
+                head.innerHTML = `<tr><th class="px-6 py-3 border-b uppercase">ID</th><th class="px-6 py-3 border-b uppercase">Nombre</th><th class="px-6 py-3 border-b uppercase">Rol</th><th class="px-6 py-3 border-b text-center uppercase">X</th></tr>`;
+                body.innerHTML = teachers.map(t => `<tr><td class="px-6 py-4 font-mono font-bold text-blue-900">${t.id}</td><td class="px-6 py-4 uppercase text-xs font-bold">${t.nombre}</td><td class="px-6 py-4 text-[10px] font-bold ${t.esAdmin?'text-purple-600':'text-slate-500'}">${t.esAdmin?'ADMIN':'PROF'}</td><td class="px-6 py-4 text-center"><button onclick="confirmDeleteTeacher('${t.id}')" class="text-red-400"><i class="fas fa-trash-alt"></i></button></td></tr>`).join('');
+                titleText.innerText = "Personal Docente";
+            } else if (mode === "attendance") {
+                head.innerHTML = `<tr><th class="px-6 py-3 border-b uppercase text-xs">ID</th><th class="px-6 py-3 border-b uppercase text-xs">Alumno</th><th class="px-6 py-3 border-b text-center uppercase text-xs">Fecha</th><th class="px-6 py-3 border-b text-center uppercase text-xs">Docente</th><th class="px-6 py-3 border-b text-center uppercase text-xs">X</th></tr>`;
+                body.innerHTML = data.map(l => `<tr><td class="px-6 py-4 font-mono font-bold text-xs">${l.alumnoId}</td><td class="px-6 py-4 uppercase text-[10px] font-semibold">${l.nombre}</td><td class="px-6 py-4 text-center text-[10px] font-bold text-slate-500">${l.fecha}</td><td class="px-6 py-4 text-center uppercase text-[9px] font-bold">${l.profesorNombre || '--'}</td><td class="px-6 py-4 text-center"><button onclick="confirmDeleteAttendance('${l.docId}')" class="text-red-400"><i class="fas fa-times-circle"></i></button></td></tr>`).join('');
+                titleText.innerText = "Historial Consultando";
+            }
+        }
+
+        window.generateAttendanceReport = async () => {
+            if (!currentUser) return;
+            const from = document.getElementById('date-from').value;
+            const to = document.getElementById('date-to').value;
+            const group = document.getElementById('select-group').value;
+            if (!from || !to) return showModalMsg("Aviso", "Seleccione el rango de fechas.");
+            try {
+                const snap = await getDocs(asistenciasColl);
+                let logs = snap.docs.map(d => ({ docId: d.id, ...d.data() })).filter(l => l.fecha >= from && l.fecha <= to);
+                if (group !== "all") logs = logs.filter(l => l.alumnoId.substring(0, 2).toLowerCase() === group);
+                logs.sort((a,b) => b.fecha.localeCompare(a.fecha) || b.hora.localeCompare(a.hora));
+                document.getElementById('report-stats').innerText = `${logs.length} REGISTROS`; document.getElementById('report-stats').classList.remove('hidden');
+                renderTable("attendance", logs);
+            } catch(e) { showModalMsg("Error", "No se pudo consultar: " + e.message); }
+        };
+
+        window.confirmDeleteStudent = (id) => { showModalMsg("Borrar Alumno", `¿Eliminar permanentemente al alumno ${id}?`, async () => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', id)); loadStudents(); }, true); };
+        window.confirmDeleteTeacher = (id) => { if (id === loggedTeacher.id) return showModalMsg("Error", "No puede eliminarse a sí mismo."); showModalMsg("Borrar Maestro", `¿Eliminar al maestro ${id}?`, async () => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', id)); loadTeachers(); }, true); };
+        window.confirmDeleteAttendance = (docId) => { showModalMsg("Borrar Registro", "¿Quitar esta asistencia del historial?", async () => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'asistencias', docId)); generateAttendanceReport(); }, true); };
+        window.confirmClearAttendance = () => { const from = document.getElementById('date-from').value; const to = document.getElementById('date-to').value; if (!from || !to) return showModalMsg("Aviso", "Defina el periodo en la pestaña de Asistencia."); showModalMsg("Limpiar Historial", `¿Borrar todas las asistencias del ${from} al ${to}?`, async () => { const snap = await getDocs(asistenciasColl); for (const d of snap.docs) if (d.data().fecha >= from && d.data().fecha <= to) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'asistencias', d.id)); generateAttendanceReport(); }, true); };
+        window.confirmResetSystem = () => { showModalMsg("VACIAR SISTEMA", "⚠️ ADVERTENCIA: Se borrará TODO (Alumnos, Maestros e Historial). ¿Confirmar?", async () => { const asSnap = await getDocs(asistenciasColl); for (const d of asSnap.docs) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'asistencias', d.id)); const alSnap = await getDocs(alumnosColl); for (const d of alSnap.docs) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', d.id)); const maSnap = await getDocs(maestrosColl); for (const d of maSnap.docs) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', d.id)); location.reload(); }, true); };
+
+        async function generateQRAsync(container, text, size) { return new Promise((r) => { new QRCode(container, { text: text, width: size, height: size, correctLevel : QRCode.CorrectLevel.H }); setTimeout(r, 120); }); }
+
+        window.printMasterList = async () => {
+            const cID = document.getElementById('check-id').checked;
+            const cName = document.getElementById('check-nombre').checked;
+            const cQR = document.getElementById('check-qr').checked;
+            const area = document.getElementById('print-content');
+            if (students.length === 0) return showModalMsg("Aviso", "Sin alumnos registrados.");
+            area.innerHTML = `<div class="p-8"><div class="flex items-center justify-between mb-8 border-b-2 border-slate-900 pb-4 uppercase leading-none"><h1 class="text-2xl font-bold text-blue-900 leading-none">Colegio Xochicalli</h1><img src="Logo Xochicalli PNG (1).png" class="h-14" onerror="this.style.display='none'"></div><h2 class="text-center font-bold mb-4 uppercase tracking-tighter underline">Lista Maestra</h2><table class="master-list-table"><thead><tr>${cID?'<th>ID</th>':''}${cName?'<th>Nombre</th>':''}${cQR?'<th class="text-center">QR</th>':''}</tr></thead><tbody id="print-master-body"></tbody></table></div>`;
+            const tbody = document.getElementById('print-master-body');
+            const sorted = [...students].sort((a,b) => a.id.localeCompare(b.id));
+            for (const s of sorted) { const tr = document.createElement('tr'); tr.innerHTML = `${cID?`<td>${s.id}</td>`:''}${cName?`<td class="uppercase font-bold">${s.nombre}</td>`:''}${cQR?`<td class="text-center py-2"><div id="qr-mini-${s.id}" class="qr-wrapper flex justify-center"></div></td>`:''}`; tbody.appendChild(tr); }
+            if(cQR) { for (const s of sorted) { const el = document.getElementById(`qr-mini-${s.id}`); if(el) await generateQRAsync(el, s.id, 65); } }
+            setTimeout(() => window.print(), 1200);
+        };
+
+        window.printAllQRs = async () => {
+            if (students.length === 0) return showModalMsg("Aviso", "Catálogo vacío.");
+            const area = document.getElementById('print-content');
+            area.innerHTML = `<div class="p-4"><h1 class="text-xl font-bold text-center border-b mb-6 pb-2 uppercase text-blue-900 leading-none tracking-widest">Catálogo QR</h1><div id="print-qr-grid" class="qr-grid"></div></div>`;
+            const grid = document.getElementById('print-qr-grid');
+            const sorted = [...students].sort((a,b) => a.id.localeCompare(b.id));
+            for (const s of sorted) { const card = document.createElement('div'); card.className = "flex flex-col items-center p-3 border border-slate-300 rounded text-center"; card.style.pageBreakInside = "avoid"; card.innerHTML = `<p class="text-[8px] font-bold uppercase border-b w-full tracking-tighter mb-2 font-bold">Xochicalli</p><div id="pqr-${s.id}" class="qr-wrapper my-2 mx-auto"></div><h4 class="text-[9px] font-bold uppercase truncate w-full mb-1 leading-none font-semibold text-blue-950">${s.nombre}</h4><p class="text-[10px] font-mono font-bold bg-slate-50 border w-full rounded py-0.5 mt-1">${s.id}</p>`; grid.appendChild(card); }
+            for (const s of sorted) { const el = document.getElementById(`pqr-${s.id}`); if(el) await generateQRAsync(el, s.id, 115); }
+            setTimeout(() => window.print(), 1500);
+        };
+
+        window.showQR = (id, name) => { const container = document.getElementById('modal-qr-container'); container.innerHTML = ""; document.getElementById('modal-title').innerText = name; document.getElementById('modal-id').innerText = id; new QRCode(container, { text: id, width: 200, height: 200 }); document.getElementById('qr-modal').classList.remove('hidden'); };
+        window.closeModal = () => document.getElementById('qr-modal').classList.add('hidden');
+
+        window.exportToExcel = async () => {
+            const from = document.getElementById('date-from').value;
+            const to = document.getElementById('date-to').value;
+            try {
+                const snap = await getDocs(asistenciasColl);
+                const logs = snap.docs.map(d => d.data()).filter(l => l.fecha >= from && l.fecha <= to);
+                if (logs.length === 0) return showModalMsg("Aviso", "Sin datos para exportar.");
+                const ws = XLSX.utils.json_to_sheet(logs.map(l => ({ ID: l.alumnoId, Alumno: l.nombre.toUpperCase(), Fecha: l.fecha, Hora: l.hora, Docente: l.profesorNombre.toUpperCase() })));
+                const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Asistencias");
+                XLSX.writeFile(wb, `Reporte_Xochicalli_${from}_al_${to}.xlsx`);
+            } catch(e) { console.error(e); }
+        };
+
+        init();
+    </script>
+</body>
+</html>
