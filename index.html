@@ -51,6 +51,36 @@
         </div>
     </div>
 
+    <!-- MODAL DE EDICIÓN -->
+    <div id="edit-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border-t-8 border-blue-600">
+            <div class="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="text-lg font-black text-blue-900 uppercase tracking-tighter">Editar Registro</h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="edit-modal-body" class="p-6 space-y-4">
+                <!-- Campos dinámicos -->
+            </div>
+            <div class="p-4 bg-slate-50 border-t flex gap-2">
+                <button onclick="closeEditModal()" class="flex-1 py-2 rounded-xl font-bold text-xs uppercase text-slate-500 hover:bg-slate-100 transition-colors">Cancelar</button>
+                <button id="btn-save-edit" class="flex-1 bg-blue-600 text-white py-2 rounded-xl font-bold text-xs uppercase shadow-lg shadow-blue-200 transition-all hover:bg-blue-700">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL QR -->
+    <div id="qr-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-[180] flex items-center justify-center p-4 no-print">
+        <div class="bg-white p-8 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl">
+            <h3 id="modal-title" class="text-xl font-bold uppercase text-blue-900 leading-none"></h3>
+            <div id="modal-qr-container" class="flex justify-center p-4 bg-white border border-slate-100 rounded-xl mx-auto shadow-inner"></div>
+            <p id="modal-id" class="text-lg font-mono font-bold text-blue-600 bg-blue-50 py-1 rounded-lg uppercase tracking-widest"></p>
+            <div class="flex gap-2">
+                <button onclick="window.print()" class="flex-1 bg-slate-800 text-white py-2 rounded-lg font-bold text-sm uppercase shadow-sm">Imprimir</button>
+                <button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg font-bold text-sm uppercase shadow-sm text-center">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- SECCIÓN DE LOGIN -->
     <section id="section-login" class="fixed inset-0 bg-blue-900 z-[100] flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full space-y-6 text-center border-t-8 border-blue-600">
@@ -63,7 +93,7 @@
                     <span id="login-btn-text">Conectando...</span>
                 </button>
                 <div id="login-error" class="text-xs font-bold text-red-500 hidden uppercase italic">ID NO RECONOCIDO</div>
-                <div id="admin-hint" class="text-[10px] text-slate-400 font-bold uppercase hidden text-center mt-4 bg-slate-50 p-2 rounded">Sistema nuevo: Use el ID 'ADMIN' para configurar</div>
+                <div id="admin-hint" class="text-[10px] text-slate-400 font-bold uppercase hidden text-center mt-4 bg-slate-50 p-2 rounded">Bypass 'ADMIN' activo: No hay administradores en el sistema</div>
             </div>
         </div>
     </section>
@@ -164,10 +194,9 @@
                     <button onclick="switchMaintCategory('sistema')" id="maint-cat-sistema" class="maint-cat-btn pb-2 px-4 text-xs font-bold uppercase border-b-2 border-transparent transition-all">Sistema</button>
                 </div>
 
-                <!-- REGISTROS -->
                 <div id="registros-subnav" class="hidden flex gap-2 bg-slate-100 p-1 rounded-xl w-fit">
-                    <button onclick="switchInnerTab('alumnos')" id="innertab-alumnos" class="inner-tab-btn px-6 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all">Alumnos</button>
-                    <button onclick="switchInnerTab('maestros')" id="innertab-maestros" class="inner-tab-btn px-6 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all">Maestros</button>
+                    <button onclick="switchInnerTab('alumnos')" id="innertab-alumnos" class="inner-tab-btn px-6 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all text-slate-500">Alumnos</button>
+                    <button onclick="switchInnerTab('maestros')" id="innertab-maestros" class="inner-tab-btn px-6 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all text-slate-500">Maestros</button>
                 </div>
 
                 <div id="innercontent-alumnos" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -180,12 +209,16 @@
                         </div>
                     </div>
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4 text-center">
-                        <h3 class="font-bold text-blue-900 uppercase text-xs border-b pb-2 text-center">Carga Masiva Alumnos</h3>
-                        <input type="file" id="csv-file-input" accept=".csv" class="hidden">
-                        <button onclick="document.getElementById('csv-file-input').click()" class="w-full bg-slate-50 hover:bg-slate-100 text-slate-600 py-3 rounded-lg border border-slate-200 font-bold uppercase text-xs shadow-sm flex items-center justify-center gap-2">
-                            <i class="fas fa-file-csv text-lg"></i> Seleccionar Archivo CSV
-                        </button>
-                        <p class="text-[10px] text-slate-400 italic mt-2">Formato: ID, Nombre (sin encabezado o con ID y Nombre)</p>
+                        <h3 class="font-bold text-blue-900 uppercase text-xs border-b pb-2 text-center">Acciones Masivas</h3>
+                        <div class="grid grid-cols-1 gap-2">
+                            <input type="file" id="csv-file-input" accept=".csv" class="hidden">
+                            <button onclick="document.getElementById('csv-file-input').click()" class="w-full bg-slate-50 hover:bg-slate-100 text-slate-600 py-2.5 rounded-lg border border-slate-200 font-bold uppercase text-[10px] shadow-sm flex items-center justify-center gap-2">
+                                <i class="fas fa-file-import"></i> Importar CSV
+                            </button>
+                            <button onclick="exportStudentsCSV()" class="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-2.5 rounded-lg border border-emerald-200 font-bold uppercase text-[10px] shadow-sm flex items-center justify-center gap-2">
+                                <i class="fas fa-file-export"></i> Exportar Catálogo CSV
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -205,7 +238,6 @@
                     </div>
                 </div>
 
-                <!-- IMPRESIÓN -->
                 <div id="innercontent-impresion" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4 text-center shadow-sm">
                         <h3 class="font-bold text-blue-900 uppercase text-xs border-b pb-2">Gafetes QR</h3>
@@ -222,10 +254,12 @@
                     </div>
                 </div>
 
-                <!-- SISTEMA -->
                 <div id="innercontent-sistema" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-red-50 space-y-4 shadow-sm">
-                        <h3 class="font-bold text-red-600 text-xs uppercase border-b pb-2">Limpieza de Asistencias</h3>
+                        <div class="flex items-center justify-between border-b pb-2">
+                            <h3 class="font-bold text-red-600 text-xs uppercase">Borrar asistencias</h3>
+                            <span class="text-[8px] bg-red-100 text-red-700 px-1 rounded font-bold uppercase italic">Base Datos</span>
+                        </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="text-[9px] font-bold uppercase text-slate-400 block mb-1">Desde</label>
@@ -237,11 +271,11 @@
                             </div>
                         </div>
                         <button id="btn-clear-database" onclick="confirmClearAttendance()" class="w-full bg-red-600 text-white font-bold py-2 rounded-lg hover:bg-red-700 transition-all text-[10px] uppercase shadow-md">
-                            Eliminar de la Base de Datos
+                            Eliminar asistencias
                         </button>
                     </div>
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-red-50 space-y-4 text-center shadow-sm">
-                        <h3 class="font-bold text-red-600 text-xs uppercase border-b pb-2 tracking-widest uppercase text-center">Reinicio Total</h3>
+                        <h3 class="font-bold text-red-600 text-xs uppercase border-b pb-2 tracking-widest uppercase text-center">Sistema</h3>
                         <button onclick="confirmResetSystem()" class="w-full bg-red-800 text-white font-bold py-2 rounded-lg shadow-lg hover:bg-red-900 transition-all text-[10px] uppercase">VACIAR TODO EL SISTEMA</button>
                     </div>
                 </div>
@@ -262,7 +296,7 @@
             </div>
         </section>
 
-        <!-- SCANNER -->
+        <!-- PASE DE LISTA -->
         <section id="section-scanner" class="space-y-6">
             <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
                 <div class="bg-blue-600 p-4 text-white text-center">
@@ -296,18 +330,6 @@
     </main>
 
     <div id="print-area" class="print-only"><div id="print-content"></div></div>
-
-    <div id="qr-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4 no-print">
-        <div class="bg-white p-8 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl">
-            <h3 id="modal-title" class="text-xl font-bold uppercase text-blue-900 leading-none"></h3>
-            <div id="modal-qr-container" class="flex justify-center p-4 bg-white border border-slate-100 rounded-xl mx-auto shadow-inner"></div>
-            <p id="modal-id" class="text-lg font-mono font-bold text-blue-600 bg-blue-50 py-1 rounded-lg uppercase tracking-widest"></p>
-            <div class="flex gap-2">
-                <button onclick="window.print()" class="flex-1 bg-slate-800 text-white py-2 rounded-lg font-bold text-sm uppercase shadow-sm">Imprimir</button>
-                <button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg font-bold text-sm uppercase shadow-sm text-center">Cerrar</button>
-            </div>
-        </div>
-    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
@@ -344,11 +366,7 @@
         const maestrosColl = collection(db, 'artifacts', appId, 'public', 'data', 'maestros');
         const asistenciasColl = collection(db, 'artifacts', appId, 'public', 'data', 'asistencias');
 
-        // FECHA MÉXICO ESTANDARIZADA (YYYY-MM-DD)
-        const getMexicoDate = () => {
-            return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
-        };
-
+        const getMexicoDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
         const getMexicoTime = () => new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date());
 
         const showModalMsg = (title, message, callback = null, isConfirm = false) => {
@@ -359,13 +377,16 @@
             const btnConfirm = document.getElementById('btn-modal-confirm');
             btnCancel.classList.toggle('hidden', !isConfirm);
             modal.classList.remove('hidden');
-            const cleanup = () => {
-                modal.classList.add('hidden');
-                btnConfirm.replaceWith(btnConfirm.cloneNode(true));
-                btnCancel.replaceWith(btnCancel.cloneNode(true));
-            };
-            document.getElementById('btn-modal-confirm').addEventListener('click', () => { cleanup(); if (callback) callback(); });
-            if(isConfirm) document.getElementById('btn-modal-cancel').addEventListener('click', cleanup);
+            
+            const btnConfirmClone = btnConfirm.cloneNode(true);
+            btnConfirm.replaceWith(btnConfirmClone);
+            
+            const btnCancelClone = btnCancel.cloneNode(true);
+            btnCancel.replaceWith(btnCancelClone);
+
+            const cleanup = () => modal.classList.add('hidden');
+            btnConfirmClone.addEventListener('click', () => { cleanup(); if (callback) callback(); });
+            if(isConfirm) btnCancelClone.addEventListener('click', cleanup);
         };
 
         const initAudio = () => { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); };
@@ -384,21 +405,25 @@
                 if (user) {
                     document.getElementById('btn-login').disabled = false;
                     document.getElementById('login-btn-text').innerText = 'Entrar';
-                    try {
-                        const snap = await getDocs(maestrosColl);
-                        if (snap.empty) document.getElementById('admin-hint').classList.remove('hidden');
-                    } catch (e) { console.error("Firestore error:", e); }
+                    checkAdminLockStatus();
                 }
             });
-            
             const today = getMexicoDate();
             document.getElementById('date-from').value = today;
             document.getElementById('date-to').value = today;
             document.getElementById('delete-date-from').value = today;
             document.getElementById('delete-date-to').value = today;
-            
-            // Configurar cargador CSV
             document.getElementById('csv-file-input').addEventListener('change', handleCSVUpload);
+        }
+
+        async function checkAdminLockStatus() {
+            try {
+                const snap = await getDocs(maestrosColl);
+                const hasAdminInDB = snap.docs.some(d => d.data().esAdmin === true);
+                const hint = document.getElementById('admin-hint');
+                if (!hasAdminInDB) hint.classList.remove('hidden');
+                else hint.classList.add('hidden');
+            } catch (e) { console.error(e); }
         }
 
         window.attemptLogin = async () => {
@@ -407,10 +432,14 @@
             if (!id) return;
             try {
                 const snapMaestros = await getDocs(maestrosColl);
-                if (snapMaestros.empty && id === 'ADMIN') {
+                const hasAdminInDB = snapMaestros.docs.some(d => d.data().esAdmin === true);
+                
+                // CANDADO: El bypass 'ADMIN' solo funciona si no hay administradores en la base de datos
+                if (!hasAdminInDB && id === 'ADMIN') {
                     loggedTeacher = { id: 'ADMIN', nombre: 'ADMIN INICIAL', materia: 'SISTEMA', esAdmin: true };
                     enterApp(); return;
                 }
+                
                 const teacherDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', id));
                 if (teacherDoc.exists()) {
                     loggedTeacher = { id: teacherDoc.id, ...teacherDoc.data() };
@@ -467,12 +496,10 @@
             const targetBtn = document.getElementById('subtab-' + subtab);
             if(targetEl) targetEl.classList.remove('hidden');
             if(targetBtn) targetBtn.classList.add('subtab-active');
-            
-            if (subtab === 'mantenimiento') {
-                switchMaintCategory('registros');
-            } else {
+            if (subtab === 'mantenimiento') switchMaintCategory('registros');
+            else {
                 document.getElementById('attendance-report-container').classList.add('hidden');
-                document.getElementById('general-table-container').classList.remove('hidden');
+                document.getElementById('general-table-container').classList.add('hidden');
             }
         };
 
@@ -483,17 +510,14 @@
                 btn.classList.remove('cat-active', 'cat-active-red', 'text-blue-600', 'text-red-600');
                 btn.classList.add('text-slate-400', 'border-transparent');
             });
-            
             const btnRegistros = document.getElementById('maint-cat-registros');
             const btnImpresion = document.getElementById('maint-cat-impresion');
             const btnSistema = document.getElementById('maint-cat-sistema');
             const subnavRegistros = document.getElementById('registros-subnav');
-
             document.getElementById('innercontent-alumnos').classList.add('hidden');
             document.getElementById('innercontent-maestros').classList.add('hidden');
             document.getElementById('innercontent-impresion').classList.add('hidden');
             document.getElementById('innercontent-sistema').classList.add('hidden');
-
             if (cat === 'registros') {
                 btnRegistros.classList.remove('text-slate-400', 'border-transparent');
                 btnRegistros.classList.add('cat-active', 'text-blue-600');
@@ -531,9 +555,7 @@
         async function handleCSVUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
-
-            showModalMsg("Procesando CSV", "Cargando lista de alumnos a la base de datos...");
-            
+            showModalMsg("Procesando", "Cargando datos...");
             Papa.parse(file, {
                 header: false,
                 skipEmptyLines: true,
@@ -546,21 +568,36 @@
                             try {
                                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', id), { nombre, createdAt: serverTimestamp() });
                                 count++;
-                            } catch (err) { console.error("CSV Row Error:", err); }
+                            } catch (err) { console.error(err); }
                         }
                     }
-                    loadStudents();
-                    showModalMsg("Éxito", `Se han cargado ${count} alumnos correctamente.`);
-                    e.target.value = ''; // Limpiar input
+                    await loadStudents();
+                    showModalMsg("Éxito", `Cargados ${count} alumnos.`);
+                    e.target.value = '';
                 }
             });
         }
+
+        window.exportStudentsCSV = () => {
+            if (students.length === 0) return showModalMsg("Aviso", "No hay alumnos para exportar.");
+            const sorted = [...students].sort((a,b) => a.id.localeCompare(b.id));
+            const csv = Papa.unparse(sorted.map(s => ({ ID: s.id, Nombre: s.nombre })));
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Catalogo_Alumnos_${getMexicoDate()}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
 
         async function onScanSuccess(decodedText) {
             if (!currentUser || !loggedTeacher) return;
             try { await html5QrScanner.pause(); } catch(e) {}
             if (scannedTodayIds.has(decodedText)) {
-                playErrorSound(); showStatus(`YA REGISTRADO HOY: ${decodedText}`, "warning");
+                playErrorSound(); showStatus(`YA REGISTRADO: ${decodedText}`, "warning");
             } else {
                 try {
                     const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', decodedText));
@@ -570,7 +607,7 @@
                     } else { playErrorSound(); showStatus("NO REGISTRADO", "error"); }
                 } catch (e) { console.error(e); }
             }
-            setTimeout(async () => { if (isScannerRunning && !isScannerTransitioning) try { await html5QrScanner.resume(); } catch(e) {} const st = document.getElementById('scan-status'); if(st) st.classList.add('hidden'); }, 2000);
+            setTimeout(async () => { if (isScannerRunning) try { await html5QrScanner.resume(); } catch(e) {} const st = document.getElementById('scan-status'); if(st) st.classList.add('hidden'); }, 2000);
         }
 
         window.generateAttendanceReport = async () => {
@@ -578,7 +615,7 @@
             const from = document.getElementById('date-from').value;
             const to = document.getElementById('date-to').value;
             const group = document.getElementById('select-group').value;
-            if (!from || !to) return showModalMsg("Aviso", "Seleccione el rango de fechas.");
+            if (!from || !to) return showModalMsg("Aviso", "Seleccione fechas.");
             try {
                 const snap = await getDocs(asistenciasColl);
                 const logs = snap.docs.map(d => d.data());
@@ -593,12 +630,84 @@
                 document.getElementById('report-subject-name').innerText = loggedTeacher.materia;
                 const tableHead = document.getElementById('report-table-head');
                 const tableBody = document.getElementById('report-table-body');
-                tableHead.innerHTML = `<tr><th class="w-12 text-center">#</th><th>Nombre del Alumno</th>${uniqueDates.map(d => `<th class="text-center font-mono text-[9px]">${d.substring(5)}</th>`).join('')}</tr>`;
+                tableHead.innerHTML = `<tr><th class="w-12 text-center">#</th><th>Nombre</th>${uniqueDates.map(d => `<th class="text-center font-mono text-[9px]">${d.substring(5)}</th>`).join('')}</tr>`;
                 tableBody.innerHTML = filteredStudents.map((s, idx) => `<tr><td class="text-center font-bold text-slate-400">${idx + 1}</td><td class="font-bold uppercase text-slate-700">${s.nombre}</td>${uniqueDates.map(d => { const p = presentIdsByDate[d] && presentIdsByDate[d].has(s.id); return `<td class="text-center font-bold ${p ? 'text-green-600' : 'text-red-500'}">${p ? '✓' : 'X'}</td>`; }).join('')}</tr>`).join('');
                 document.getElementById('attendance-report-container').classList.remove('hidden');
                 document.getElementById('general-table-container').classList.add('hidden');
-            } catch(e) { showModalMsg("Error", "No se pudo generar el informe."); }
+                const printArea = document.getElementById('print-content');
+                printArea.innerHTML = `<div class=\"p-8\"><div class=\"flex items-center justify-between mb-8 border-b-2 border-slate-900 pb-4 uppercase leading-none\"><h1 class=\"text-2xl font-bold text-blue-900 leading-none\">Colegio Xochicalli</h1><img src=\"logo.png\" class=\"h-14\" onerror=\"this.style.display='none'\"></div><div class=\"mb-4 space-y-1\"><p class=\"text-xs font-bold uppercase\">PROFESOR: <span class=\"font-normal\">${loggedTeacher.nombre}</span></p><p class=\"text-xs font-bold uppercase\">MATERIA: <span class=\"font-normal\">${loggedTeacher.materia}</span></p><p class=\"text-xs font-bold uppercase\">PERIODO: <span class=\"font-normal\">${from} al ${to}</span></p></div><table class=\"master-list-table\"><thead><tr><th class=\"text-center w-8\">#</th><th>Alumno</th>${uniqueDates.map(d => `<th class=\"text-center\">${d.substring(5)}</th>`).join('')}</tr></thead><tbody>${filteredStudents.map((s, idx) => `<tr><td class=\"text-center\">${idx + 1}</td><td class=\"uppercase font-bold\">${s.nombre}</td>${uniqueDates.map(d => { const p = presentIdsByDate[d] && presentIdsByDate[d].has(s.id); return `<td class=\"text-center\">${p ? '✓' : 'X'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+            } catch(e) { showModalMsg("Error", "Error al generar reporte."); }
         };
+
+        window.editStudent = (id) => {
+            const student = students.find(s => s.id === id);
+            if (!student) return;
+            const container = document.getElementById('edit-modal-body');
+            container.innerHTML = `
+                <div class="bg-amber-50 p-3 rounded-lg border border-amber-200 mb-2">
+                    <p class="text-[10px] font-bold text-amber-700 uppercase"><i class="fas fa-exclamation-triangle"></i> Aviso</p>
+                    <p class="text-[9px] text-amber-600">Si cambia el ID o el Nombre, se debe imprimir un nuevo QR.</p>
+                </div>
+                <div><label class="text-[10px] font-bold text-slate-400 uppercase">ID Alumno</label><input id="edit-id" type="text" value="${student.id}" class="w-full px-4 py-2 border rounded-lg font-bold uppercase text-blue-600"></div>
+                <div><label class="text-[10px] font-bold text-slate-400 uppercase">Nombre Completo</label><input id="edit-nombre" type="text" value="${student.nombre}" class="w-full px-4 py-2 border rounded-lg uppercase"></div>
+            `;
+            document.getElementById('btn-save-edit').onclick = () => saveStudentEdit(id);
+            document.getElementById('edit-modal').classList.remove('hidden');
+        };
+
+        const saveStudentEdit = async (oldId) => {
+            const newId = document.getElementById('edit-id').value.trim().toUpperCase();
+            const nombre = document.getElementById('edit-nombre').value.trim().toUpperCase();
+            const originalStudent = students.find(s => s.id === oldId);
+            if (!newId || !nombre) return;
+            const changed = newId !== oldId || nombre !== originalStudent.nombre;
+            try {
+                if (newId !== oldId) {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', newId), { nombre, createdAt: serverTimestamp() });
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', oldId));
+                } else {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', oldId), { nombre, updatedAt: serverTimestamp() });
+                }
+                closeEditModal(); await loadStudents();
+                if (changed) {
+                    showModalMsg("Cambio Detectado", "Es obligatorio imprimir el nuevo código QR.", () => showQR(newId, nombre));
+                }
+            } catch(e) { console.error(e); }
+        };
+
+        window.editTeacher = (id) => {
+            const teacher = teachers.find(t => t.id === id);
+            if (!teacher) return;
+            const container = document.getElementById('edit-modal-body');
+            container.innerHTML = `
+                <div><label class="text-[10px] font-bold text-slate-400 uppercase">ID Maestro</label><input id="edit-maestro-id" type="text" value="${teacher.id}" class="w-full px-4 py-2 border rounded-lg font-bold uppercase text-blue-950"></div>
+                <div><label class="text-[10px] font-bold text-slate-400 uppercase">Nombre</label><input id="edit-maestro-nombre" type="text" value="${teacher.nombre}" class="w-full px-4 py-2 border rounded-lg uppercase"></div>
+                <div><label class="text-[10px] font-bold text-slate-400 uppercase">Materia</label><input id="edit-maestro-materia" type="text" value="${teacher.materia || ''}" class="w-full px-4 py-2 border rounded-lg uppercase"></div>
+                <label class="flex items-center gap-2 mt-2"><input id="edit-maestro-admin" type="checkbox" ${teacher.esAdmin?'checked':''}> <span class="text-xs font-bold uppercase">Es Administrador</span></label>
+            `;
+            document.getElementById('btn-save-edit').onclick = () => saveTeacherEdit(id);
+            document.getElementById('edit-modal').classList.remove('hidden');
+        };
+
+        const saveTeacherEdit = async (oldId) => {
+            const newId = document.getElementById('edit-maestro-id').value.trim().toUpperCase();
+            const nombre = document.getElementById('edit-maestro-nombre').value.trim().toUpperCase();
+            const materia = document.getElementById('edit-maestro-materia').value.trim().toUpperCase();
+            const esAdmin = document.getElementById('edit-maestro-admin').checked;
+            if (!newId || !nombre) return;
+            try {
+                const data = { nombre, materia, esAdmin, updatedAt: serverTimestamp() };
+                if (newId !== oldId) {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', newId), data);
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', oldId));
+                } else {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', oldId), data);
+                }
+                closeEditModal(); await loadTeachers();
+            } catch(e) { console.error(e); }
+        };
+
+        window.closeEditModal = () => document.getElementById('edit-modal').classList.add('hidden');
 
         function renderTable(mode, data = []) {
             const body = document.getElementById('data-table-body');
@@ -608,69 +717,67 @@
             document.getElementById('attendance-report-container').classList.add('hidden');
             document.getElementById('general-table-container').classList.remove('hidden');
             if (mode === "catalog") {
-                head.innerHTML = `<tr><th class="px-6 py-3 border-b uppercase text-xs">ID</th><th class="px-6 py-3 border-b uppercase text-xs">Nombre</th><th class="px-6 py-3 border-b text-center uppercase text-xs">QR</th><th class="px-6 py-3 border-b text-center uppercase text-xs">X</th></tr>`;
-                body.innerHTML = students.map(s => `<tr><td class="px-6 py-4 font-mono font-bold text-blue-600 uppercase tracking-tighter">${s.id}</td><td class="px-6 py-4 uppercase text-xs font-semibold">${s.nombre}</td><td class="px-6 py-4 text-center"><button onclick="showQR('${s.id}', '${s.nombre}')" class="text-blue-500 hover:scale-110 transition-transform"><i class="fas fa-qrcode"></i></button></td><td class="px-6 py-4 text-center"><button onclick="confirmDeleteStudent('${s.id}')" class="text-red-400 hover:scale-110 transition-transform"><i class="fas fa-trash-alt"></i></button></td></tr>`).join('');
+                head.innerHTML = `<tr><th class="px-6 py-3 border-b uppercase text-xs">ID</th><th class="px-6 py-3 border-b uppercase text-xs">Nombre</th><th class="px-6 py-3 border-b text-center uppercase text-xs">QR</th><th class="px-6 py-3 border-b text-center uppercase text-xs">Ed</th><th class="px-6 py-3 border-b text-center uppercase text-xs">X</th></tr>`;
+                body.innerHTML = students.map(s => `<tr><td class="px-6 py-4 font-mono font-bold text-blue-600 uppercase tracking-tighter">${s.id}</td><td class="px-6 py-4 uppercase text-xs font-semibold">${s.nombre}</td><td class="px-6 py-4 text-center"><button onclick="showQR('${s.id}', '${s.nombre}')" class="text-blue-500 hover:scale-110"><i class="fas fa-qrcode"></i></button></td><td class="px-6 py-4 text-center"><button onclick="editStudent('${s.id}')" class="text-indigo-500 hover:scale-110"><i class="fas fa-edit"></i></button></td><td class="px-6 py-4 text-center"><button onclick="confirmDeleteStudent('${s.id}')" class="text-red-400 hover:scale-110 transition-transform"><i class="fas fa-trash-alt"></i></button></td></tr>`).join('');
                 titleText.innerText = "Catálogo de Alumnos";
             } else if (mode === "teachers") {
-                head.innerHTML = `<tr><th class="px-6 py-3 border-b uppercase text-xs">ID</th><th class="px-6 py-3 border-b uppercase text-xs">Nombre</th><th class="px-6 py-3 border-b uppercase text-xs">Rol</th><th class="px-6 py-3 border-b text-center uppercase text-xs">X</th></tr>`;
-                body.innerHTML = teachers.map(t => `<tr><td class="px-6 py-4 font-mono font-bold text-blue-900">${t.id}</td><td class="px-6 py-4 uppercase text-xs font-bold">${t.nombre}</td><td class="px-6 py-4 text-[10px] font-bold ${t.esAdmin?'text-purple-600':'text-slate-500'}">${t.esAdmin?'ADMINISTRADOR':'DOCENTE'}</td><td class="px-6 py-4 text-center"><button onclick="confirmDeleteTeacher('${t.id}')" class="text-red-400 hover:scale-110 transition-transform"><i class="fas fa-trash-alt"></i></button></td></tr>`).join('');
+                head.innerHTML = `<tr><th class="px-6 py-3 border-b uppercase text-xs">ID</th><th class="px-6 py-3 border-b uppercase text-xs">Nombre</th><th class="px-6 py-3 border-b uppercase text-xs">Rol</th><th class="px-6 py-3 border-b text-center uppercase text-xs">Ed</th><th class="px-6 py-3 border-b text-center uppercase text-xs">X</th></tr>`;
+                body.innerHTML = teachers.map(t => `<tr><td class="px-6 py-4 font-mono font-bold text-blue-900">${t.id}</td><td class="px-6 py-4 uppercase text-xs font-bold">${t.nombre}</td><td class="px-6 py-4 text-[10px] font-bold ${t.esAdmin?'text-purple-600':'text-slate-500'}">${t.esAdmin?'ADMIN':'DOCENTE'}</td><td class="px-6 py-4 text-center"><button onclick="editTeacher('${t.id}')" class="text-indigo-500 hover:scale-110"><i class="fas fa-edit"></i></button></td><td class="px-6 py-4 text-center"><button onclick="confirmDeleteTeacher('${t.id}')" class="text-red-400 hover:scale-110 hover:scale-110 transition-transform"><i class="fas fa-trash-alt"></i></button></td></tr>`).join('');
                 titleText.innerText = "Personal Docente";
             }
         }
 
         window.loadStudents = async () => { if (!currentUser) return; try { const snap = await getDocs(alumnosColl); students = snap.docs.map(d => ({ id: d.id, ...d.data() })); if (currentInnerTab === 'alumnos' && currentMaintCat === 'registros') renderTable("catalog"); } catch(e) { console.error(e); } };
         window.loadTeachers = async () => { if (!currentUser) return; try { const snap = await getDocs(maestrosColl); teachers = snap.docs.map(d => ({ id: d.id, ...d.data() })); if (currentInnerTab === 'maestros' && currentMaintCat === 'registros') renderTable("teachers"); } catch(e) { console.error(e); } };
-        window.addStudent = async () => { const id = document.getElementById('input-id').value.trim().toUpperCase(); const nombre = document.getElementById('input-name').value.trim().toUpperCase(); if (!id || !nombre) return showModalMsg("Aviso", "Complete los campos."); try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', id), { nombre, createdAt: serverTimestamp() }); document.getElementById('input-id').value = ''; document.getElementById('input-name').value = ''; loadStudents(); showModalMsg("Guardado", "Alumno registrado exitosamente."); } catch(e) { showModalMsg("Error", "No se pudo guardar."); } };
-        window.addTeacher = async () => { const id = document.getElementById('input-maestro-id').value.trim().toUpperCase(); const nombre = document.getElementById('input-maestro-name').value.trim().toUpperCase(); const materia = document.getElementById('input-maestro-materia').value.trim().toUpperCase(); const esAdmin = document.getElementById('input-maestro-admin').checked; if (!id || !nombre || !materia) return showModalMsg("Aviso", "Faltan datos del docente."); try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', id), { nombre, materia, esAdmin, createdAt: serverTimestamp() }); document.getElementById('input-id').value = ''; document.getElementById('input-name').value = ''; document.getElementById('input-maestro-materia').value = ''; document.getElementById('input-maestro-admin').checked = false; loadTeachers(); showModalMsg("Guardado", "Maestro registrado exitosamente."); } catch(e) { showModalMsg("Error", "No se pudo guardar."); } };
+        window.addStudent = async () => { const id = document.getElementById('input-id').value.trim().toUpperCase(); const nombre = document.getElementById('input-name').value.trim().toUpperCase(); if (!id || !nombre) return showModalMsg("Aviso", "Complete los campos."); try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', id), { nombre, createdAt: serverTimestamp() }); document.getElementById('input-id').value = ''; document.getElementById('input-name').value = ''; await loadStudents(); showModalMsg("Guardado", "Alumno registrado."); } catch(e) { showModalMsg("Error", "Error al guardar."); } };
+        window.addTeacher = async () => { const id = document.getElementById('input-maestro-id').value.trim().toUpperCase(); const nombre = document.getElementById('input-maestro-name').value.trim().toUpperCase(); const materia = document.getElementById('input-maestro-materia').value.trim().toUpperCase(); const esAdmin = document.getElementById('input-maestro-admin').checked; if (!id || !nombre) return showModalMsg("Aviso", "Faltan datos."); try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', id), { nombre, materia, esAdmin, createdAt: serverTimestamp() }); document.getElementById('input-maestro-id').value = ''; document.getElementById('input-maestro-name').value = ''; document.getElementById('input-maestro-materia').value = ''; document.getElementById('input-maestro-admin').checked = false; await loadTeachers(); checkAdminLockStatus(); showModalMsg("Guardado", "Maestro registrado."); } catch(e) { showModalMsg("Error", "Error al guardar."); } };
         window.confirmDeleteStudent = (id) => { showModalMsg("Borrar Alumno", `¿Eliminar permanentemente al alumno ${id}?`, async () => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', id)); loadStudents(); }, true); };
-        window.confirmDeleteTeacher = (id) => { if (id === loggedTeacher.id) return showModalMsg("Error", "No puede eliminarse a sí mismo."); showModalMsg("Borrar Maestro", `¿Eliminar al maestro ${id}?`, async () => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', id)); loadTeachers(); }, true); };
+        window.confirmDeleteTeacher = (id) => { if (id === loggedTeacher.id) return showModalMsg("Error", "No puede eliminarse a sí mismo."); showModalMsg("Borrar Maestro", `¿Eliminar al maestro ${id}?`, async () => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', id)); await loadTeachers(); checkAdminLockStatus(); }, true); };
         
         window.confirmClearAttendance = () => { 
             const from = document.getElementById('delete-date-from').value; 
             const to = document.getElementById('delete-date-to').value; 
-            if (!from || !to) return showModalMsg("Aviso", "Seleccione el rango de fechas para borrar."); 
-            
-            showModalMsg("⚠️ ELIMINAR DE BASE DE DATOS", `¿Confirmas eliminar permanentemente los registros entre el ${from} y el ${to}? Se borrarán del servidor.`, async () => { 
+            if (!from || !to) return showModalMsg("Aviso", "Seleccione fechas."); 
+            showModalMsg("⚠️ ELIMINAR", `¿Eliminar registros entre el ${from} y el ${to}?`, async () => { 
                 const btn = document.getElementById('btn-clear-database');
                 const originalText = btn.innerText;
-                btn.disabled = true;
-                btn.innerText = "LIMPIANDO NUBE...";
-
+                btn.disabled = true; btn.innerText = "BORRANDO...";
                 try {
                     const snap = await getDocs(asistenciasColl); 
                     let deletedCount = 0;
                     for (const d of snap.docs) {
                         const docDate = d.data().fecha; 
-                        // Comparación estricta YYYY-MM-DD y también soporte para MM-DD si existiera
-                        if ((docDate >= from && docDate <= to) || (docDate.length === 5 && from.includes(docDate))) {
+                        if (docDate >= from && docDate <= to) {
                             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'asistencias', d.id)); 
                             deletedCount++;
                         }
                     }
-                    document.getElementById('report-table-body').innerHTML = '';
-                    document.getElementById('attendance-report-container').classList.add('hidden');
-                    document.getElementById('general-table-container').classList.remove('hidden');
-                    showModalMsg("Éxito", `Se han eliminado ${deletedCount} registros de asistencia.`);
-                } catch (e) {
-                    showModalMsg("Error", "No se pudo completar la limpieza: " + e.message);
-                } finally {
-                    btn.disabled = false;
-                    btn.innerText = originalText;
-                }
+                    showModalMsg("Éxito", `Se han eliminado ${deletedCount} registros.`);
+                } catch (e) { showModalMsg("Error", e.message); } finally { btn.disabled = false; btn.innerText = originalText; }
             }, true); 
         };
 
-        window.confirmResetSystem = () => { showModalMsg("VACIAR SISTEMA", "⚠️ ADVERTENCIA: Se borrará TODO (Alumnos, Maestros e Historial). ¿Confirmar?", async () => { const asSnap = await getDocs(asistenciasColl); for (const d of asSnap.docs) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'asistencias', d.id)); const alSnap = await getDocs(alumnosColl); for (const d of alSnap.docs) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', d.id)); const maSnap = await getDocs(maestrosColl); for (const d of maSnap.docs) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', d.id)); location.reload(); }, true); };
+        window.confirmResetSystem = () => { showModalMsg("VACIAR SISTEMA", "⚠️ ADVERTENCIA: Se borrará TODO.", async () => { const asSnap = await getDocs(asistenciasColl); for (const d of asSnap.docs) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'asistencias', d.id)); const alSnap = await getDocs(alumnosColl); for (const d of alSnap.docs) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', d.id)); const maSnap = await getDocs(maestrosColl); for (const d of maSnap.docs) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', d.id)); location.reload(); }, true); };
         window.toggleCamera = async () => { initAudio(); if (isScannerRunning) await stopScanner(); else await initScanner(); };
-        function updateScannerUI(isRunning) { const btnText = document.getElementById('btn-camera-text'); const overlay = document.getElementById('camera-off-overlay'); if (isRunning) { if(btnText) btnText.innerText = "Apagar Cámara"; if(overlay) overlay.classList.add('hidden'); } else { if(btnText) btnText.innerText = "Encender Cámara"; if(overlay) overlay.classList.remove('hidden'); } }
+        function updateScannerUI(isRunning) { const btnText = document.getElementById('btn-camera-text'); const overlay = document.getElementById('camera-off-overlay'); if (isRunning) { if(btnText) btnText.innerText = "Apagar"; if(overlay) overlay.classList.add('hidden'); } else { if(btnText) btnText.innerText = "Encender"; if(overlay) overlay.classList.remove('hidden'); } }
         async function initScanner() { if (isScannerRunning || isScannerTransitioning) return; isScannerTransitioning = true; if (!html5QrScanner) html5QrScanner = new Html5Qrcode("qr-reader"); try { await html5QrScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess); isScannerRunning = true; updateScannerUI(true); } catch (err) {} finally { isScannerTransitioning = false; } }
         async function stopScanner() { if (!isScannerRunning || isScannerTransitioning) return; isScannerTransitioning = true; try { await html5QrScanner.stop(); isScannerRunning = false; updateScannerUI(false); } catch (err) {} finally { isScannerTransitioning = false; } }
-        function listenToAttendanceToday() { if (!currentUser) return; onSnapshot(asistenciasColl, (snap) => { const logsList = document.getElementById('recent-logs'); const countBadge = document.getElementById('scan-count'); const todayStr = getMexicoDate(); scannedTodayIds.clear(); const logs = snap.docs.map(d => d.data()).filter(d => d.fecha === todayStr).sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)); logs.forEach(l => scannedTodayIds.add(l.alumnoId)); countBadge.innerText = `${logs.length} HOY`; if (logs.length === 0) { logsList.innerHTML = `<li class=\"p-4 text-center text-slate-400 italic text-sm font-bold uppercase\">Sin registros hoy</li>`; return; } logsList.innerHTML = logs.slice(0, 10).map(l => `<li class=\"p-4 flex justify-between items-center bg-white shadow-sm rounded-lg mb-1 px-4\"><div><p class=\"font-bold uppercase text-slate-700 text-xs\">${l.nombre}</p><p class=\"text-[9px] text-slate-400 font-bold\">PROF: ${l.profesorNombre || 'N/A'}</p></div><span class=\"text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500 font-mono font-bold\">${l.hora || '--:--'}</span></li>`).join(''); }); }
-        window.showQR = (id, name) => { const container = document.getElementById('modal-qr-container'); container.innerHTML = ""; document.getElementById('modal-title').innerText = name; document.getElementById('modal-id').innerText = id; new QRCode(container, { text: id, width: 200, height: 200 }); document.getElementById('qr-modal').classList.remove('hidden'); };
+        function listenToAttendanceToday() { if (!currentUser) return; onSnapshot(asistenciasColl, (snap) => { const logsList = document.getElementById('recent-logs'); const countBadge = document.getElementById('scan-count'); const todayStr = getMexicoDate(); scannedTodayIds.clear(); const logs = snap.docs.map(d => d.data()).filter(d => d.fecha === todayStr).sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)); logs.forEach(l => scannedTodayIds.add(l.alumnoId)); countBadge.innerText = `${logs.length} HOY`; if (logs.length === 0) { logsList.innerHTML = `<li class=\"p-4 text-center text-slate-400 italic text-sm font-bold uppercase\">Sin registros</li>`; return; } logsList.innerHTML = logs.slice(0, 10).map(l => `<li class=\"p-4 flex justify-between items-center bg-white shadow-sm rounded-lg mb-1 px-4\"><div><p class=\"font-bold uppercase text-slate-700 text-xs\">${l.nombre}</p><p class=\"text-[9px] text-slate-400 font-bold tracking-tighter\">PROF: ${l.profesorNombre || 'N/A'}</p></div><span class=\"text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500 font-mono font-bold\">${l.hora || '--:--'}</span></li>`).join(''); }); }
+        
+        window.showQR = (id, name) => { 
+            const container = document.getElementById('modal-qr-container'); 
+            if (!container) return;
+            container.innerHTML = ""; 
+            document.getElementById('modal-title').innerText = name; 
+            document.getElementById('modal-id').innerText = id; 
+            new QRCode(container, { text: id, width: 200, height: 200 }); 
+            document.getElementById('qr-modal').classList.remove('hidden'); 
+        };
+        
         window.closeModal = () => document.getElementById('qr-modal').classList.add('hidden');
         function showStatus(msg, type) { const el = document.getElementById('scan-status'); if(!el) return; el.innerText = msg; let cls = type === 'success' ? "bg-green-100 text-green-700" : (type === 'warning' ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"); el.className = `p-4 rounded-lg text-center font-bold block ${cls}`; el.classList.remove('hidden'); }
         async function generateQRAsync(container, text, size) { return new Promise((r) => { new QRCode(container, { text: text, width: size, height: size, correctLevel : QRCode.CorrectLevel.H }); setTimeout(r, 120); }); }
-        window.printMasterList = async () => { const area = document.getElementById('print-content'); if (students.length === 0) return showModalMsg("Aviso", "Sin alumnos registrados."); const cID = document.getElementById('check-id').checked; const cName = document.getElementById('check-nombre').checked; const cQR = document.getElementById('check-qr').checked; area.innerHTML = `<div class=\"p-8\"><div class=\"flex items-center justify-between mb-8 border-b-2 border-slate-900 pb-4 uppercase leading-none\"><h1 class=\"text-2xl font-bold text-blue-900 leading-none\">Colegio Xochicalli</h1><img src=\"logo.png\" class=\"h-14\" onerror=\"this.style.display='none'\"></div><h2 class=\"text-center font-bold mb-4 uppercase tracking-tighter underline font-sans\">Lista Maestra de Alumnos</h2><table class=\"master-list-table\"><thead><tr>${cID?'<th>ID</th>':''}${cName?'<th>Nombre Completo</th>':''}${cQR?'<th class=\"text-center\">Código QR</th>':''}</tr></thead><tbody id=\"print-master-body\"></tbody></table></div>`; const tbody = document.getElementById('print-master-body'); const sorted = [...students].sort((a,b) => a.id.localeCompare(b.id)); for (const s of sorted) { const tr = document.createElement('tr'); tr.innerHTML = `${cID?`<td>${s.id}</td>`:''}${cName?`<td class=\"uppercase font-bold\">${s.nombre}</td>`:''}${cQR?`<td class=\"text-center py-2\"><div id=\"qr-mini-${s.id}\" class=\"qr-wrapper flex justify-center\"></div></td>`:''}`; tbody.appendChild(tr); } if(cQR) { for (const s of sorted) { const el = document.getElementById(`qr-mini-${s.id}`); if(el) await generateQRAsync(el, s.id, 65); } } setTimeout(() => window.print(), 1200); };
+        window.printMasterList = async () => { const area = document.getElementById('print-content'); if (students.length === 0) return showModalMsg("Aviso", "Sin alumnos."); const cID = document.getElementById('check-id').checked; const cName = document.getElementById('check-nombre').checked; const cQR = document.getElementById('check-qr').checked; area.innerHTML = `<div class=\"p-8\"><div class=\"flex items-center justify-between mb-8 border-b-2 border-slate-900 pb-4 uppercase leading-none\"><h1 class=\"text-2xl font-bold text-blue-900 leading-none\">Colegio Xochicalli</h1><img src=\"logo.png\" class=\"h-14\" onerror=\"this.style.display='none'\"></div><h2 class=\"text-center font-bold mb-4 uppercase tracking-tighter underline font-sans\">Lista Maestra de Alumnos</h2><table class=\"master-list-table\"><thead><tr>${cID?'<th>ID</th>':''}${cName?'<th>Nombre</th>':''}${cQR?'<th class=\"text-center\">Código QR</th>':''}</tr></thead><tbody id=\"print-master-body\"></tbody></table></div>`; const tbody = document.getElementById('print-master-body'); const sorted = [...students].sort((a,b) => a.id.localeCompare(b.id)); for (const s of sorted) { const tr = document.createElement('tr'); tr.innerHTML = `${cID?`<td>${s.id}</td>`:''}${cName?`<td class=\"uppercase font-bold\">${s.nombre}</td>`:''}${cQR?`<td class=\"text-center py-2\"><div id=\"qr-mini-${s.id}\" class=\"qr-wrapper flex justify-center\"></div></td>`:''}`; tbody.appendChild(tr); } if(cQR) { for (const s of sorted) { const el = document.getElementById(`qr-mini-${s.id}`); if(el) await generateQRAsync(el, s.id, 65); } } setTimeout(() => window.print(), 1200); };
         window.printAllQRs = async () => { if (students.length === 0) return showModalMsg("Aviso", "Catálogo vacío."); const area = document.getElementById('print-content'); area.innerHTML = `<div class=\"p-4\"><h1 class=\"text-xl font-bold text-center border-b mb-6 pb-2 uppercase text-blue-900 tracking-widest leading-none\">Catálogo QR</h1><div id=\"print-qr-grid\" class=\"qr-grid\"></div></div>`; const grid = document.getElementById('print-qr-grid'); const sorted = [...students].sort((a,b) => a.id.localeCompare(b.id)); for (const s of sorted) { const card = document.createElement('div'); card.className = "flex flex-col items-center p-3 border border-slate-300 rounded text-center"; card.style.pageBreakInside = "avoid"; card.innerHTML = `<p class=\"text-[8px] font-bold uppercase border-b w-full tracking-tighter mb-2 font-bold text-blue-700\">Colegio Xochicalli</p><div id=\"pqr-${s.id}\" class=\"qr-wrapper my-2 mx-auto\"></div><h4 class=\"text-[9px] font-bold uppercase truncate w-full mb-1 leading-none font-semibold text-blue-950\">${s.nombre}</h4><p class=\"text-[10px] font-mono font-bold bg-slate-50 border w-full rounded py-0.5 mt-1\">${s.id}</p>`; grid.appendChild(card); } for (const s of sorted) { const el = document.getElementById(`pqr-${s.id}`); if(el) await generateQRAsync(el, s.id, 115); } setTimeout(() => window.print(), 1500); };
 
         init();
