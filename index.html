@@ -23,6 +23,7 @@
         @media print {
             .no-print { display: none !important; }
             .print-only { display: block !important; visibility: visible !important; }
+            
             #print-area { 
                 position: absolute; 
                 left: 0; 
@@ -30,16 +31,19 @@
                 width: 215.9mm; 
                 height: 279.4mm; 
                 z-index: 9999; 
-                background: white; 
+                background: white;
+                padding: 5mm;
+                box-sizing: border-box;
             }
             
             .qr-grid { 
                 display: grid !important; 
                 grid-template-columns: repeat(3, 1fr) !important; 
                 grid-template-rows: repeat(3, 1fr) !important;
-                width: 100% !important;
-                height: 100% !important;
+                width: 205.9mm !important;
+                height: 269.4mm !important;
                 gap: 0 !important;
+                margin: 0 auto !important;
             }
 
             .qr-print-card {
@@ -47,14 +51,23 @@
                 flex-direction: column;
                 justify-content: center;
                 align-items: center;
-                border: 0.1mm solid #ddd; /* Línea de corte tenue */
+                border: 0.1mm solid #ddd;
                 box-sizing: border-box;
-                padding: 4mm; /* Margen de 4mm del código a la línea de corte */
-                height: 93.1mm; /* Aproximado para 3 filas en carta */
+                padding: 4mm;
+                overflow: hidden;
             }
 
-            .page-break { page-break-after: always; }
-            body { background: white !important; -webkit-print-color-adjust: exact; margin: 0; padding: 0; }
+            .page-break { 
+                page-break-after: always;
+                break-after: page;
+            }
+
+            body { 
+                background: white !important; 
+                -webkit-print-color-adjust: exact; 
+                margin: 0; 
+                padding: 0; 
+            }
         }
 
         .print-only { display: none; }
@@ -66,7 +79,7 @@
         .inner-tab-active { background-color: var(--primary-green) !important; color: white !important; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
         
         #qr-reader video { border-radius: 12px; }
-        .qr-wrapper canvas, .qr-wrapper img { margin: 0 auto; }
+        .qr-wrapper canvas, .qr-wrapper img { margin: 0 auto; max-width: 100%; height: auto; }
         
         .report-card { background: white; border-radius: 1rem; border: 1px solid #e2e8f0; overflow: hidden; }
         .attendance-table th { background-color: #f8fafc; color: #64748b; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.75rem 1rem; border-bottom: 2px solid #e2e8f0; }
@@ -81,15 +94,16 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
-            padding: 3px;
+            padding: 2px;
             border-radius: 4px;
             display: flex;
             flex-direction: column;
             align-items: center;
             width: 25%; 
+            box-shadow: 0 0 0 2px white;
         }
-        .qr-logo-img { width: 100%; height: auto; }
-        .qr-logo-id { font-size: 5pt; font-weight: bold; color: black; line-height: 1; margin-top: 1px; font-family: monospace; }
+        .qr-logo-img { width: 100%; height: auto; display: block; }
+        .qr-logo-id { font-size: 4.5pt; font-weight: 900; color: black; line-height: 1; margin-top: 1px; font-family: monospace; letter-spacing: -0.2px; }
         
         .selection-list-container {
             max-height: 250px;
@@ -129,19 +143,6 @@
         </div>
     </div>
 
-    <!-- MODAL QR (Vista Previa) -->
-    <div id="qr-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-[180] flex items-center justify-center p-4 no-print">
-        <div class="bg-white p-8 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl">
-            <h3 id="modal-title" class="text-xl font-bold uppercase text-[#0e5b2f] leading-none"></h3>
-            <div id="modal-qr-container" class="flex justify-center p-4 bg-white border border-slate-100 rounded-xl mx-auto shadow-inner"></div>
-            <p id="modal-id" class="text-lg font-mono font-bold text-[#e96925] bg-orange-50 py-1 rounded-lg uppercase tracking-widest"></p>
-            <div class="flex gap-2">
-                <button onclick="window.print()" class="flex-1 bg-slate-800 text-white py-2 rounded-lg font-bold text-sm uppercase shadow-sm">Imprimir</button>
-                <button onclick="window.closeModal()" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg font-bold text-sm uppercase shadow-sm text-center">Cerrar</button>
-            </div>
-        </div>
-    </div>
-
     <!-- LOGIN -->
     <section id="section-login" class="fixed inset-0 bg-[#0e5b2f] z-[100] flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full space-y-6 text-center border-t-8 border-[#e96925]">
@@ -154,6 +155,12 @@
                     <span id="login-btn-text">Conectando...</span>
                 </button>
                 <div id="login-error" class="text-xs font-bold text-red-500 hidden uppercase italic text-center">ID NO RECONOCIDO</div>
+                
+                <div id="admin-hint" class="hidden mt-6 p-3 bg-orange-50 border border-orange-100 rounded-xl">
+                    <p class="text-[10px] text-orange-700 font-bold uppercase leading-tight italic">
+                        Sistema sin configurar.<br>Ingrese el ID: <span class="text-xs font-black">ADMIN</span> para comenzar.
+                    </p>
+                </div>
             </div>
         </div>
     </section>
@@ -301,13 +308,13 @@
 
                 <div id="innercontent-impresion" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4 text-center shadow-sm">
-                        <h3 class="font-bold text-[#0e5b2f] uppercase text-xs border-b pb-2">Catálogo Completo</h3>
-                        <p class="text-[10px] text-slate-400 italic">Imprime todos los alumnos (9 por hoja).</p>
+                        <h3 class="font-bold text-[#0e5b2f] uppercase text-xs border-b pb-2">Catálogo Completo (3x3)</h3>
+                        <p class="text-[10px] text-slate-400 italic">Imprime todos los alumnos (9 por hoja carta).</p>
                         <button onclick="window.printAllQRs()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition-all uppercase text-xs shadow-md">Imprimir Todo</button>
                     </div>
                     
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4 shadow-sm flex flex-col">
-                        <h3 class="font-bold text-[#0e5b2f] uppercase text-xs border-b pb-2 text-center">Impresión por Selección</h3>
+                        <h3 class="font-bold text-[#0e5b2f] uppercase text-xs border-b pb-2 text-center">Selección Manual</h3>
                         <input type="text" id="search-print-student" placeholder="BUSCAR ALUMNO..." onkeyup="window.filterPrintSelection()" class="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-1 focus:ring-[#e96925] uppercase font-bold">
                         <div id="print-selection-list" class="selection-list-container flex-1 divide-y divide-slate-100 mt-2"></div>
                         <button onclick="window.printSelectedQRs()" class="w-full mt-4 bg-[#e96925] text-white font-bold py-3 rounded-lg hover:opacity-90 transition-all uppercase text-xs shadow-md">Imprimir Selección</button>
@@ -480,7 +487,7 @@
                     descripcion: description,
                     timestamp: serverTimestamp()
                 });
-            } catch (e) { console.error("Error logging action:", e); }
+            } catch (e) {}
         };
 
         const showStatus = (m, y) => { 
@@ -504,13 +511,42 @@
         };
 
         const initAudio = () => { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); };
-        const playSuccessSound = () => { initAudio(); const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.frequency.setValueAtTime(880, audioCtx.currentTime); gain.gain.setValueAtTime(0, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.05); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15); osc.start(); osc.stop(audioCtx.currentTime + 0.15); };
+        const playSuccessSound = () => { 
+            initAudio(); 
+            const playTone = (time) => {
+                const osc = audioCtx.createOscillator(); 
+                const gainNode = audioCtx.createGain();
+                osc.connect(gainNode); 
+                gainNode.connect(audioCtx.destination); 
+                osc.frequency.setValueAtTime(880, time); 
+                gainNode.gain.setValueAtTime(0, time); 
+                gainNode.gain.linearRampToValueAtTime(0.7, time + 0.05);
+                gainNode.gain.linearRampToValueAtTime(0, time + 0.15); 
+                osc.start(time); 
+                osc.stop(time + 0.15);
+            };
+            playTone(audioCtx.currentTime);
+            playTone(audioCtx.currentTime + 0.2);
+        };
         const playErrorSound = () => { 
             initAudio(); const osc = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
             osc.connect(gainNode); gainNode.connect(audioCtx.destination); osc.type = 'square'; 
             osc.frequency.setValueAtTime(120, audioCtx.currentTime); gainNode.gain.setValueAtTime(0, audioCtx.currentTime); 
-            gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.1); gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4); 
+            gainNode.gain.linearRampToValueAtTime(0.7, audioCtx.currentTime + 0.1); 
+            gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4); 
             osc.start(); osc.stop(audioCtx.currentTime + 0.4); 
+        };
+
+        const checkAdminLockStatus = async () => {
+            try {
+                const snap = await getDocs(maestrosColl);
+                const hint = document.getElementById('admin-hint');
+                if (snap.empty && hint) {
+                    hint.classList.remove('hidden');
+                } else if (hint) {
+                    hint.classList.add('hidden');
+                }
+            } catch (e) {}
         };
 
         async function init() {
@@ -525,6 +561,7 @@
                 if (user) {
                     const loginBtn = document.getElementById('btn-login'); if(loginBtn) loginBtn.disabled = false;
                     const loginBtnText = document.getElementById('login-btn-text'); if(loginBtnText) loginBtnText.innerText = 'Entrar';
+                    checkAdminLockStatus();
                 }
             });
             const today = getMexicoDate();
@@ -532,8 +569,6 @@
             const dt = document.getElementById('date-to'); if(dt) dt.value = today;
             const ddf = document.getElementById('delete-date-from'); if(ddf) ddf.value = today;
             const ddt = document.getElementById('delete-date-to'); if(ddt) ddt.value = today;
-            const csvInput = document.getElementById('csv-file-input');
-            if(csvInput) csvInput.addEventListener('change', window.handleCSVUpload);
         }
 
         async function loadStudents() {
@@ -587,7 +622,7 @@
                     const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', t));
                     if (snap.exists()) {
                         await addDoc(asistenciasColl, { alumnoId: t, nombre: snap.data().nombre, profesorId: loggedTeacher.id, profesorNombre: loggedTeacher.nombre, fecha: getMexicoDate(), hora: getMexicoTime(), timestamp: serverTimestamp() });
-                        await logAction(`Pase de lista: ${snap.data().nombre} (${t})`);
+                        await logAction(`Pase de lista: ${snap.data().nombre}`);
                         playSuccessSound(); showStatus(`REGISTRADO: ${snap.data().nombre}`, "success");
                     } else { playErrorSound(); showStatus("NO REGISTRADO", "error"); }
                 } catch (e) {}
@@ -643,6 +678,7 @@
                 document.getElementById('main-header').classList.add('hidden');
                 document.getElementById('main-content').classList.add('hidden');
                 document.getElementById('section-login').classList.remove('hidden');
+                checkAdminLockStatus();
             }, true);
         };
 
@@ -721,25 +757,41 @@
         window.printSelectedQRs = async () => {
             const checks = document.querySelectorAll('.print-student-check:checked');
             if(checks.length === 0) return showModalMsg("Aviso", "Seleccione al menos un alumno.");
+            
             const ids = Array.from(checks).map(c => c.value);
             const selectedStudents = students.filter(s => ids.includes(s.id));
+            
             await performQRPrint(selectedStudents, "Selección");
+            
+            // Limpia los seleccionados después de imprimir
+            checks.forEach(c => c.checked = false);
         };
 
         const performQRPrint = async (list, logTag) => {
             showModalMsg("Generando reporte", `Preparando ${list.length} código(s)...`);
             const area = document.getElementById('print-content');
             document.getElementById('print-area').style.display = 'block';
-            area.innerHTML = `<div id="print-qr-grid" class="qr-grid"></div>`;
-            const grid = document.getElementById('print-qr-grid');
-            for (const s of list) {
-                const card = document.createElement('div'); card.className = "qr-print-card";
-                card.innerHTML = `<div class="qr-container-relative"><div id="pqr-${s.id}" class="qr-wrapper"></div><div class="qr-logo-container"><img src="logo.png" class="qr-logo-img" onerror="this.style.display='none'"><span class="qr-logo-id">${s.id}</span></div></div>`;
-                grid.appendChild(card);
+            let html = "";
+            for(let i = 0; i < list.length; i += 9) {
+                const chunk = list.slice(i, i + 9);
+                html += `<div class="qr-grid ${i + 9 < list.length ? 'page-break' : ''}">`;
+                for (const s of chunk) {
+                    html += `
+                        <div class="qr-print-card">
+                            <div class="qr-container-relative">
+                                <div id="pqr-${s.id}" class="qr-wrapper"></div>
+                                <div class="qr-logo-container">
+                                    <img src="logo.png" class="qr-logo-img" onerror="this.style.display='none'">
+                                    <span class="qr-logo-id">${s.id}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                html += `</div>`;
             }
-            for (const s of list) {
-                const el = document.getElementById(`pqr-${s.id}`); if(el) await generateQRAsync(el, s.id, 300);
-            }
+            area.innerHTML = html;
+            for (const s of list) { const el = document.getElementById(`pqr-${s.id}`); if(el) await generateQRAsync(el, s.id, 280); }
             setTimeout(() => {
                 window.print(); document.getElementById('custom-modal').classList.add('hidden');
                 document.getElementById('print-area').style.display = ''; logAction(`Impresión QR ${logTag}: ${list.length} alumnos`);
@@ -781,7 +833,7 @@
             if (!id || !nombre) return showModalMsg("Aviso", "Complete los campos.");
             try {
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', id), { nombre, createdAt: serverTimestamp() });
-                await logAction(`Alumno agregado: ${nombre} (${id})`); document.getElementById('input-id').value = ''; document.getElementById('input-name').value = '';
+                await logAction(`Alumno agregado: ${nombre}`); document.getElementById('input-id').value = ''; document.getElementById('input-name').value = '';
                 await loadStudents(); showModalMsg("Éxito", "Alumno guardado.");
             } catch(e) {}
         };
@@ -794,8 +846,8 @@
             if (!id || !nombre) return showModalMsg("Aviso", "Faltan datos.");
             try {
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', id), { nombre, materia, esAdmin, createdAt: serverTimestamp() });
-                await logAction(`Maestro agregado: ${nombre} (${id})`); document.getElementById('input-maestro-id').value = ''; document.getElementById('input-maestro-name').value = '';
-                await loadTeachers(); showModalMsg("Éxito", "Maestro guardado.");
+                await logAction(`Maestro agregado: ${nombre}`); document.getElementById('input-maestro-id').value = ''; document.getElementById('input-maestro-name').value = '';
+                await loadTeachers(); await checkAdminLockStatus(); showModalMsg("Éxito", "Maestro guardado.");
             } catch(e) {}
         };
 
@@ -817,7 +869,7 @@
                     await logAction(`ID Alumno cambiado: ${oldId} -> ${newId}`);
                 } else {
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', oldId), { nombre });
-                    await logAction(`Nombre Alumno editado: ${oldId}`);
+                    await logAction(`Nombre Alumno editado: ${nombre}`);
                 }
                 window.closeEditModal(); await loadStudents();
             } catch(e) {}
@@ -888,7 +940,7 @@
                     let count = 0;
                     for (const row of results.data) {
                         const id = String(row.ID || row.id || "").trim().toUpperCase();
-                        const nombre = String(row.Nombre || row.nombre || "").trim().toUpperCase();
+                        const nombre = String(row[Object.keys(row).find(k => k.toLowerCase() === 'nombre')] || "").trim().toUpperCase();
                         if (id && nombre) {
                             try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', id), { nombre, createdAt: serverTimestamp() }); count++; } catch (err) {}
                         }
