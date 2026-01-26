@@ -69,7 +69,7 @@
     </div>
 
     <!-- MODAL QR -->
-    <div id="qr-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-[180] flex items-center justify-center p-4 no-print">
+    <div id="qr-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-180 flex items-center justify-center p-4 no-print">
         <div class="bg-white p-8 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl">
             <h3 id="modal-title" class="text-xl font-bold uppercase text-blue-900 leading-none"></h3>
             <div id="modal-qr-container" class="flex justify-center p-4 bg-white border border-slate-100 rounded-xl mx-auto shadow-inner"></div>
@@ -156,7 +156,7 @@
                     <div class="report-card p-8 shadow-lg">
                         <div class="flex items-center justify-between mb-8 border-b-2 border-slate-100 pb-6">
                             <div class="flex items-center gap-6">
-                                <img src="logo.png" class="h-20" alt="Logo" onerror="this.style.display='none'">
+                                <img src="logo.png" alt="Logo" onerror="this.style.display='none'">
                                 <div>
                                     <h1 class="text-3xl font-black text-blue-900 uppercase leading-none">Colegio Xochicalli</h1>
                                     <p class="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">Informe de Asistencia Escolar</p>
@@ -211,8 +211,7 @@
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4 text-center">
                         <h3 class="font-bold text-blue-900 uppercase text-xs border-b pb-2 text-center">Acciones Masivas</h3>
                         <div class="grid grid-cols-1 gap-2">
-                            <!-- Selector de archivos ajustado para celulares -->
-                            <input type="file" id="csv-file-input" accept=".csv, text/csv, application/vnd.ms-excel" class="hidden">
+                            <input type="file" id="csv-file-input" accept=".csv" class="hidden">
                             <button onclick="document.getElementById('csv-file-input').click()" class="w-full bg-slate-50 hover:bg-slate-100 text-slate-600 py-2.5 rounded-lg border border-slate-200 font-bold uppercase text-[10px] shadow-sm flex items-center justify-center gap-2">
                                 <i class="fas fa-file-import"></i> Importar CSV
                             </button>
@@ -220,7 +219,6 @@
                                 <i class="fas fa-file-export"></i> Exportar Catálogo CSV
                             </button>
                         </div>
-                        <p class="text-[9px] text-slate-400 italic mt-2">Sugerencia: En el celular, busque el archivo en 'Descargas' o 'Archivos'.</p>
                     </div>
                 </div>
 
@@ -416,8 +414,6 @@
             document.getElementById('date-to').value = today;
             document.getElementById('delete-date-from').value = today;
             document.getElementById('delete-date-to').value = today;
-            
-            // Re-vincular listener de CSV con compatibilidad extendida
             document.getElementById('csv-file-input').addEventListener('change', handleCSVUpload);
         }
 
@@ -561,7 +557,7 @@
         async function handleCSVUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
-            showModalMsg("Procesando", "Cargando lista a la base de datos central...");
+            showModalMsg("Procesando", "Cargando datos...");
             Papa.parse(file, {
                 header: false,
                 skipEmptyLines: true,
@@ -574,12 +570,12 @@
                             try {
                                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', id), { nombre, createdAt: serverTimestamp() });
                                 count++;
-                            } catch (err) { console.error("Error en fila:", err); }
+                            } catch (err) { console.error(err); }
                         }
                     }
                     await loadStudents();
                     showModalMsg("Éxito", `Se han cargado ${count} alumnos correctamente.`);
-                    e.target.value = ''; // Limpiar para permitir re-selección
+                    e.target.value = '';
                 }
             });
         }
@@ -603,7 +599,7 @@
             if (!currentUser || !loggedTeacher) return;
             try { await html5QrScanner.pause(); } catch(e) {}
             if (scannedTodayIds.has(decodedText)) {
-                playErrorSound(); showStatus(`YA REGISTRADO HOY: ${decodedText}`, "warning");
+                playErrorSound(); showStatus(`YA REGISTRADO: ${decodedText}`, "warning");
             } else {
                 try {
                     const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', decodedText));
@@ -621,9 +617,9 @@
             const from = document.getElementById('date-from').value;
             const to = document.getElementById('date-to').value;
             const group = document.getElementById('select-group').value;
-            if (!from || !to) return showModalMsg("Aviso", "Seleccione el rango de fechas.");
+            if (!from || !to) return showModalMsg("Aviso", "Seleccione fechas.");
             
-            showModalMsg("Generando reporte", "Estamos preparando la información. Por favor, espere...");
+            showModalMsg("Generando reporte", "Estamos preparando la información para su visualización e impresión. Por favor, espere...");
 
             try {
                 const snap = await getDocs(asistenciasColl);
@@ -641,17 +637,61 @@
                 const tableHead = document.getElementById('report-table-head');
                 const tableBody = document.getElementById('report-table-body');
                 
-                tableHead.innerHTML = `<tr><th class="w-12 text-center">#</th><th>Nombre</th>${uniqueDates.map(d => `<th class="text-center font-mono text-[9px]">${d.substring(5)}</th>`).join('')}</tr>`;
-                tableBody.innerHTML = filteredStudents.map((s, idx) => `<tr><td class="text-center font-bold text-slate-400">${idx + 1}</td><td class="font-bold uppercase text-slate-700">${s.nombre}</td>${uniqueDates.map(d => { const p = presentIdsByDate[d] && presentIdsByDate[d].has(s.id); return `<td class="text-center font-bold ${p ? 'text-green-600' : 'text-red-500'}">${p ? '✓' : 'X'}</td>`; }).join('')}</tr>`).join('');
+                // Cabecera con columna Total
+                tableHead.innerHTML = `<tr><th class="w-12 text-center">#</th><th>Nombre</th>${uniqueDates.map(d => `<th class="text-center font-mono text-[9px]">${d.substring(5)}</th>`).join('')}<th class="text-center font-bold">TOTAL</th></tr>`;
                 
+                // Cuerpo con cálculo de asistencias individuales
+                tableBody.innerHTML = filteredStudents.map((s, idx) => {
+                    let studentTotal = 0;
+                    const daysMarkup = uniqueDates.map(d => { 
+                        const p = presentIdsByDate[d] && presentIdsByDate[d].has(s.id); 
+                        if(p) studentTotal++;
+                        return `<td class="text-center font-bold ${p ? 'text-green-600' : 'text-red-500'}">${p ? '✓' : 'X'}</td>`; 
+                    }).join('');
+                    
+                    return `<tr><td class="text-center font-bold text-slate-400">${idx + 1}</td><td class="font-bold uppercase text-slate-700">${s.nombre}</td>${daysMarkup}<td class="text-center font-black text-blue-700 bg-blue-50/50">${studentTotal}</td></tr>`;
+                }).join('');
+
                 document.getElementById('attendance-report-container').classList.remove('hidden');
                 document.getElementById('general-table-container').classList.add('hidden');
                 
                 const printArea = document.getElementById('print-content');
-                printArea.innerHTML = `<div class=\"p-8\"><div class=\"flex items-center justify-between mb-8 border-b-2 border-slate-900 pb-4 uppercase leading-none\"><h1 class=\"text-2xl font-bold text-blue-900 leading-none\">Colegio Xochicalli</h1><img src=\"logo.png\" class=\"h-14\" onerror=\"this.style.display='none'\"></div><div class=\"mb-4 space-y-1\"><p class=\"text-xs font-bold uppercase\">PROFESOR: <span class=\"font-normal\">${loggedTeacher.nombre}</span></p><p class=\"text-xs font-bold uppercase\">MATERIA: <span class=\"font-normal\">${loggedTeacher.materia}</span></p><p class=\"text-xs font-bold uppercase\">PERIODO: <span class=\"font-normal\">${from} al ${to}</span></p></div><table class=\"master-list-table\"><thead><tr><th class=\"text-center w-8\">#</th><th>Alumno</th>${uniqueDates.map(d => `<th class=\"text-center\">${d.substring(5)}</th>`).join('')}</tr></thead><tbody>${filteredStudents.map((s, idx) => `<tr><td class=\"text-center\">${idx + 1}</td><td class=\"uppercase font-bold\">${s.nombre}</td>${uniqueDates.map(d => { const p = presentIdsByDate[d] && presentIdsByDate[d].has(s.id); return `<td class=\"text-center\">${p ? '✓' : 'X'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+                printArea.innerHTML = `
+                <div class="p-8">
+                    <div class="flex items-center justify-between mb-8 border-b-2 border-slate-900 pb-4 uppercase leading-none">
+                        <h1 class="text-2xl font-bold text-blue-900 leading-none">Colegio Xochicalli</h1>
+                        <img src="logo.png" class="h-14" onerror="this.style.display='none'">
+                    </div>
+                    <div class="mb-4 space-y-1">
+                        <p class="text-xs font-bold uppercase">PROFESOR: <span class="font-normal">${loggedTeacher.nombre}</span></p>
+                        <p class="text-xs font-bold uppercase">MATERIA: <span class="font-normal">${loggedTeacher.materia}</span></p>
+                        <p class="text-xs font-bold uppercase">PERIODO: <span class="font-normal">${from} al ${to}</span></p>
+                    </div>
+                    <table class="master-list-table">
+                        <thead>
+                            <tr>
+                                <th class="text-center w-8">#</th>
+                                <th>Alumno</th>
+                                ${uniqueDates.map(d => `<th class="text-center">${d.substring(5)}</th>`).join('')}
+                                <th class="text-center">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filteredStudents.map((s, idx) => {
+                                let total = 0;
+                                const marks = uniqueDates.map(d => {
+                                    const p = presentIdsByDate[d] && presentIdsByDate[d].has(s.id);
+                                    if(p) total++;
+                                    return `<td class="text-center">${p ? '✓' : 'X'}</td>`;
+                                }).join('');
+                                return `<tr><td class="text-center">${idx + 1}</td><td class="uppercase font-bold">${s.nombre}</td>${marks}<td class="text-center font-bold">${total}</td></tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
                 
                 setTimeout(() => document.getElementById('custom-modal').classList.add('hidden'), 500);
-            } catch(e) { showModalMsg("Error", "Ocurrió un problema al procesar los datos."); }
+            } catch(e) { showModalMsg("Error", "Error al generar reporte."); }
         };
 
         window.editStudent = (id) => {
@@ -744,8 +784,8 @@
 
         window.loadStudents = async () => { if (!currentUser) return; try { const snap = await getDocs(alumnosColl); students = snap.docs.map(d => ({ id: d.id, ...d.data() })); if (currentInnerTab === 'alumnos' && currentMaintCat === 'registros') renderTable("catalog"); } catch(e) { console.error(e); } };
         window.loadTeachers = async () => { if (!currentUser) return; try { const snap = await getDocs(maestrosColl); teachers = snap.docs.map(d => ({ id: d.id, ...d.data() })); if (currentInnerTab === 'maestros' && currentMaintCat === 'registros') renderTable("teachers"); } catch(e) { console.error(e); } };
-        window.addStudent = async () => { const id = document.getElementById('input-id').value.trim().toUpperCase(); const nombre = document.getElementById('input-name').value.trim().toUpperCase(); if (!id || !nombre) return showModalMsg("Aviso", "Complete los campos."); try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', id), { nombre, createdAt: serverTimestamp() }); document.getElementById('input-id').value = ''; document.getElementById('input-name').value = ''; await loadStudents(); showModalMsg("Guardado", "Alumno registrado."); } catch(e) { showModalMsg("Error", "Ocurrió un error."); } };
-        window.addTeacher = async () => { const id = document.getElementById('input-maestro-id').value.trim().toUpperCase(); const nombre = document.getElementById('input-maestro-name').value.trim().toUpperCase(); const materia = document.getElementById('input-maestro-materia').value.trim().toUpperCase(); const esAdmin = document.getElementById('input-maestro-admin').checked; if (!id || !nombre) return showModalMsg("Aviso", "Faltan datos."); try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', id), { nombre, materia, esAdmin, createdAt: serverTimestamp() }); document.getElementById('input-maestro-id').value = ''; document.getElementById('input-maestro-name').value = ''; document.getElementById('input-maestro-materia').value = ''; document.getElementById('input-maestro-admin').checked = false; await loadTeachers(); checkAdminLockStatus(); showModalMsg("Guardado", "Maestro registrado."); } catch(e) { showModalMsg("Error", "Ocurrió un error."); } };
+        window.addStudent = async () => { const id = document.getElementById('input-id').value.trim().toUpperCase(); const nombre = document.getElementById('input-name').value.trim().toUpperCase(); if (!id || !nombre) return showModalMsg("Aviso", "Complete los campos."); try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', id), { nombre, createdAt: serverTimestamp() }); document.getElementById('input-id').value = ''; document.getElementById('input-name').value = ''; await loadStudents(); showModalMsg("Guardado", "Alumno registrado."); } catch (e) { showModalMsg("Error", "Error al guardar."); } };
+        window.addTeacher = async () => { const id = document.getElementById('input-maestro-id').value.trim().toUpperCase(); const nombre = document.getElementById('input-maestro-name').value.trim().toUpperCase(); const materia = document.getElementById('input-maestro-materia').value.trim().toUpperCase(); const esAdmin = document.getElementById('input-maestro-admin').checked; if (!id || !nombre) return showModalMsg("Aviso", "Faltan datos."); try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', id), { nombre, materia, esAdmin, createdAt: serverTimestamp() }); document.getElementById('input-maestro-id').value = ''; document.getElementById('input-maestro-name').value = ''; document.getElementById('input-maestro-materia').value = ''; document.getElementById('input-maestro-admin').checked = false; await loadTeachers(); checkAdminLockStatus(); showModalMsg("Guardado", "Maestro registrado."); } catch (e) { showModalMsg("Error", "Error al guardar."); } };
         window.confirmDeleteStudent = (id) => { showModalMsg("Borrar Alumno", `¿Eliminar permanentemente al alumno ${id}?`, async () => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alumnos', id)); loadStudents(); }, true); };
         window.confirmDeleteTeacher = (id) => { if (id === loggedTeacher.id) return showModalMsg("Error", "No puede eliminarse a sí mismo."); showModalMsg("Borrar Maestro", `¿Eliminar al maestro ${id}?`, async () => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'maestros', id)); await loadTeachers(); checkAdminLockStatus(); }, true); };
         
@@ -755,6 +795,7 @@
             if (!from || !to) return showModalMsg("Aviso", "Seleccione fechas."); 
             showModalMsg("⚠️ ELIMINAR", `¿Eliminar registros entre el ${from} y el ${to}?`, async () => { 
                 const btn = document.getElementById('btn-clear-database');
+                const originalText = btn.innerText;
                 btn.disabled = true; btn.innerText = "BORRANDO...";
                 try {
                     const snap = await getDocs(asistenciasColl); 
@@ -767,7 +808,7 @@
                         }
                     }
                     showModalMsg("Éxito", `Se han eliminado ${deletedCount} registros.`);
-                } catch (e) { showModalMsg("Error", "Error al borrar."); } finally { btn.disabled = false; btn.innerText = "Eliminar asistencias"; }
+                } catch (e) { showModalMsg("Error", e.message); } finally { btn.disabled = false; btn.innerText = originalText; }
             }, true); 
         };
 
